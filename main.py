@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # change_str_label_to_int()
     # count_img_sizes()
 
-    display_random_img('data_tsinghua/images/', 'data_tsinghua/labels/')
+    display_random_img('data/data_tsinghua/images/', 'data/data_tsinghua/labels/')
 
 
     # input_video_path = 'test/bikes2.mp4'
