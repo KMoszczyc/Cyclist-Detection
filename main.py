@@ -1,5 +1,5 @@
-from load_utils import clean_labels, display_image, png_to_jpg, filter_images_without_cyclists, split_dataset, count_img_sizes, resize_images, change_str_label_to_int
-from predict import predict_video, predict_img, predict_video_yolov4
+from load_utils import *
+from predict import predict_video_yolov5, predict_img, predict_video_yolov4
 import os
 import cv2
 import random
@@ -10,27 +10,24 @@ TRAIN_LABELS_CLEANED_DIR = 'data_raw/labels/training_cleaned/'
 if __name__ == '__main__':
     print('halo')
     # clean_labels()
-    # png_to_jpg()
+    # png_to_jpg('data_raw_tsinghua_big/images/', 'data_tsinghua/images/')
+    # json_to_yolo_label('data_raw_tsinghua_big/labels/', 'data_tsinghua/labels/')
+
+    # rename_files('data_tsinghua/labels/')
     # filter_images_without_cyclists()
     # split_dataset()
     # resize_images()
     # change_str_label_to_int()
     # count_img_sizes()
 
-    # filenames = os.listdir(TRAIN_IMAGES_DIR)
-    # # for filename in filenames:
-    # while True:
-    #     filename = random.choice(filenames)
-    #     img_id = int(filename.split('.')[0])
-    #     print('-----------------', filename, '-----------------')
-    #
-    #     display_image(img_id)
+    display_random_img('data_tsinghua/images/', 'data_tsinghua/labels/')
 
-    # print(img.shape[0])
 
-    input_video_path = 'test/bikes2.mp4'
-    output_video_path = 'results/bikes2_yolov4_with_tracking_th_0_6.mp4'
+    # input_video_path = 'test/bikes2.mp4'
+    # output_video_path = 'results/deepsort_out.mp4'
     # predict_video(input_video_path, output_video_path)
-    predict_video_yolov4(input_video_path, output_video_path)
+    # predict_video_yolov4(input_video_path, output_video_path)
+    # predict_video_yolov4_deepsort(input_video_path, output_video_path)
+
 
     # predict_img()

@@ -1,5 +1,5 @@
 # LABELS format
-#Values    Name      Description
+# Values    Name      Description
 # ----------------------------------------------------------------------------
 #    1    type         Describes the type of object: 'Car', 'Van', 'Truck',
 #                      'Pedestrian', 'Person_sitting', 'Cyclist', 'Tram',
@@ -26,6 +26,8 @@ from PIL import Image
 import os
 import cv2
 import shutil
+import json
+import random
 
 TRAIN_IMAGES_DIR = 'data_raw/images/training/'
 TRAIN_IMAGES_RESIZED_DIR = 'data_raw/images/training_resized_370/'
@@ -36,16 +38,21 @@ TRAIN_LABELS_YOLO_DIR = 'data_raw/labels/training_yolo/'
 
 
 def id_to_str(id):
+    """
+    Convert integer to a string id - used for renaming the data files
+    """
     str_id = str(id)
     return str_id.zfill(6)
 
-def display_image(id):
-    img_src = 'data_raw/images/training_resized_384/'
-    label_src = 'data_raw/labels/training_yolo_384/'
+
+def display_image(id, img_src_dir, label_src_dir):
+    """
+    Display the image with given id with it's bounding boxes in yolo format.
+    """
 
     str_id = id_to_str(id)
-    img_path = f'{img_src}{str_id}.jpg'
-    label_path = f'{label_src}{str_id}.txt'
+    img_path = f'{img_src_dir}{str_id}.jpg'
+    label_path = f'{label_src_dir}{str_id}.txt'
     img = cv2.imread(img_path)
 
     bounding_boxes_yolo = get_yolo_bounding_boxes(label_path)
@@ -63,8 +70,14 @@ def display_image(id):
 
     cv2.waitKey(0)
 
+
 def cut_img(img, bounding_boxes):
-    target_w = int(16/9*370)
+    """
+    Crop given image to lessen the width of it without losing valuable information.
+    (KITTI images are quite wide 1242x375 - which is 3.31/1)
+    Target aspect ratio is 16/9
+    """
+    target_w = int(16 / 9 * 370)
 
     h = img.shape[0]
     w = img.shape[1]
@@ -72,16 +85,16 @@ def cut_img(img, bounding_boxes):
 
     min_left = min([box['left'] for box in bounding_boxes])
     max_right = max([box['right'] for box in bounding_boxes])
-    middle = int((min_left + max_right)/2)
+    middle = int((min_left + max_right) / 2)
 
-    left = middle - int(target_w/2)
-    right = middle + int(target_w/2)
+    left = middle - int(target_w / 2)
+    right = middle + int(target_w / 2)
 
-    if left<0:
+    if left < 0:
         left = 0
         right = target_w
-    if right>target_w:
-        left = w-target_w
+    if right > target_w:
+        left = w - target_w
         right = w
     if left > min_left:
         left = min_left
@@ -99,18 +112,30 @@ def cut_img(img, bounding_boxes):
 
     return img[top:, left:right], bounding_boxes
 
+
 def coords_to_yolo(img, left, top, right, bottom):
+    """
+    Convert cartesian coordinates bounding box format to yolo format:
+        x1, y1, x2, y2 to x_center, y_center, width, height
+    """
+
     h = img.shape[0]
     w = img.shape[1]
 
-    x_center = (left+right) / 2 / w
-    y_center = (top+bottom) / 2 / h
-    box_w = (right-left) / w
+    x_center = (left + right) / 2 / w
+    y_center = (top + bottom) / 2 / h
+    box_w = (right - left) / w
     box_h = (bottom - top) / h
 
     return x_center, y_center, box_w, box_h
 
+
 def yolo_to_coords(img, x_center, y_center, box_w, box_h):
+    """
+    Convert yolo bounding box format to cartesian coordinates :
+    x_center, y_center, width, height to x1, y1, x2, y2 (left, top, right, bottom)
+    """
+
     h = img.shape[0]
     w = img.shape[1]
 
@@ -119,39 +144,60 @@ def yolo_to_coords(img, x_center, y_center, box_w, box_h):
     box_w = box_w * w
     box_h = box_h * h
 
-    top = int(y_center - box_h/2)
+    top = int(y_center - box_h / 2)
     bottom = int(y_center + box_h / 2)
     left = int(x_center - box_w / 2)
     right = int(x_center + box_w / 2)
     return left, top, right, bottom
 
+
 def get_bounding_boxes(bb_path):
+    """
+    Read KITTI bounding boxes from a file
+    """
     with open(f'{bb_path}', 'r') as f:
         labels = f.read().splitlines()
         bounding_boxes = [get_bounding_box(line) for line in labels]
         return bounding_boxes
 
+
 def get_bounding_box(str_label):
+    """
+    Convert KITTI bounding box from a string to a tuple of floats (cartesian coordinates)
+    """
     line_split = str_label.split(' ')
-    return {'label':line_split[0], 'left':int(float(line_split[1])), 'top':int(float(line_split[2])), 'right':int(float(line_split[3])), 'bottom':int(float(line_split[4]))}
+    return {'label': line_split[0], 'left': int(float(line_split[1])), 'top': int(float(line_split[2])),
+            'right': int(float(line_split[3])), 'bottom': int(float(line_split[4]))}
+
 
 def get_yolo_bounding_boxes(bb_path):
+    """
+    Read yolo bounding boxes from a file
+    """
     with open(f'{bb_path}', 'r') as f:
         labels = f.read().splitlines()
         bounding_boxes = [get_yolo_bounding_box(line) for line in labels]
         return bounding_boxes
 
+
 def get_yolo_bounding_box(str_label):
+    """
+    Convert yolo bounding box from a string to a tuple of floats
+    """
     s = str_label.split(' ')
-    return (float(s[1]), float(s[2]), float(s[3]), float(s[4]))
+    return float(s[1]), float(s[2]), float(s[3]), float(s[4])
 
 
-def clean_labels():
-    filenames = os.listdir(TRAIN_LABELS_OLD_DIR)
+def clean_labels(src_dir, dst_dit):
+    """
+    Remove all of the other objects that aren't 'Cyclist' - KITTI
+    """
+
+    filenames = os.listdir(src_dir)
     num_of_imgs_with_cyclists = 0
     num_of_cyclists = 0
     for filename in filenames:
-        with open(f'{TRAIN_LABELS_OLD_DIR}{filename}', 'r') as input_f:
+        with open(f'{src_dir}{filename}', 'r') as input_f:
             labels = input_f.read().splitlines()
             cyclists = []
             for line in labels:
@@ -159,36 +205,74 @@ def clean_labels():
                 if line_split[0] == 'Cyclist':
                     cyclists.append(f'{line_split[0]} {line_split[4]} {line_split[5]} {line_split[6]} {line_split[7]}')
 
-            if len(cyclists)>0:
+            if len(cyclists) > 0:
                 print(cyclists)
-                with open(f'{TRAIN_LABELS_CLEANED_DIR}{filename}', 'w') as output:
+                with open(f'{dst_dit}{filename}', 'w') as output:
                     for item in cyclists:
                         output.write(f"{item}\n")
 
             num_of_cyclists += len(cyclists)
-            num_of_imgs_with_cyclists += len(cyclists)>0
+            num_of_imgs_with_cyclists += len(cyclists) > 0
 
     print('num of imgs with cyclists:', num_of_imgs_with_cyclists, '\t num of cyclists:', num_of_cyclists)
 
-def png_to_jpg():
-    old_dir = 'data/images/training_old/'
-    new_dir = 'data/images/training_new/'
 
-    filenames = os.listdir(old_dir)
+def png_to_jpg(src, dst):
+    """
+    Convert png images to jpg from one dir to another (to redece disk space usage)
+    """
+
+    filenames = os.listdir(src)
     for filename in filenames:
         file_id = filename.split('.')[0]
-        img = Image.open(f'{old_dir}{filename}')
-        img.save(f'{new_dir}{file_id}.jpg')
+        img = Image.open(f'{src}{filename}')
+        img.save(f'{dst}{file_id}.jpg')
 
-def filter_images_without_cyclists():
-    img_filenames = os.listdir(TRAIN_IMAGES_DIR)
-    label_filenames = os.listdir(TRAIN_LABELS_CLEANED_DIR)
+
+def json_to_yolo_label(src, dst):
+    """
+    Convert Tsinghua-Daimler Cyclist Dataset labels json format to yolov4
+    """
+
+    filenames = os.listdir(src)
+    for filename in filenames:
+        dst_filename = filename.split('.')[0] + '.txt'
+        f = open(f'{src}{filename}')
+        data = json.load(f)
+        f.close()
+
+        image_path = 'data_raw_tsinghua_big/images/' + data['imagename']
+        img = cv2.imread(image_path)
+
+        bounding_boxes_yolo = []
+        for child in data['children']:
+            left = child['mincol']
+            top = child['minrow']
+            right = child['maxcol']
+            bottom = child['maxrow']
+            identity = child['identity']
+
+            if identity == 'cyclist':
+                bounding_boxes_yolo.append(coords_to_yolo(img, left, top, right, bottom))
+
+        with open(f'{dst}{dst_filename}', 'w') as output:
+            for bb in bounding_boxes_yolo:
+                output.write(f"{0} {bb[0]} {bb[1]} {bb[2]} {bb[3]}\n")
+
+
+def filter_images_without_cyclists(img_src_dir, label_src_dir):
+    """
+    Remove images without cyclists (KITTI) 
+    """
+    
+    img_filenames = os.listdir(img_src_dir)
+    label_filenames = os.listdir(label_src_dir)
     count = 0
     for img_filename in img_filenames:
         file_id = img_filename.split('.')[0]
-        if file_id+'.txt' not in label_filenames:
+        if file_id + '.txt' not in label_filenames:
             print(file_id)
-            os.remove(f'{TRAIN_IMAGES_DIR}{img_filename}')
+            os.remove(f'{img_src_dir}{img_filename}')
 
     print(count)
 
@@ -205,58 +289,66 @@ def split_dataset():
     img_filenames = os.listdir(src_img)
     label_filenames = os.listdir(src_labels)
 
-    split_pivot = int(len(img_filenames)*0.8)
+    split_pivot = int(len(img_filenames) * 0.8)
 
     for i in range(len(img_filenames)):
         img = img_filenames[i]
         label = label_filenames[i]
-        if i < split_pivot:     #train
+        if i < split_pivot:  # train
             shutil.copyfile(f'{src_img}{img}', f'{dst_img_train}{img}')
             shutil.copyfile(f'{src_labels}{label}', f'{dst_labels_train}{label}')
-        else:   #valid
+        else:  # valid
             shutil.copyfile(f'{src_img}{img}', f'{dst_img_valid}{img}')
             shutil.copyfile(f'{src_labels}{label}', f'{dst_labels_valid}{label}')
 
-def count_img_sizes():
-    filenames = os.listdir(TRAIN_IMAGES_DIR)
 
+def count_img_sizes(directory):
+    """
+    Count widths, heights of images from dir - some images have different sizes in kitti dataset f.e
+    """
+    filenames = os.listdir(directory)
     ws = []
     hs = []
     for f in filenames:
-        img = cv2.imread(f'{TRAIN_IMAGES_DIR}{f}')
+        img = cv2.imread(f'{directory}{f}')
         ws.append(img.shape[0])
         hs.append(img.shape[1])
 
     print(Counter(ws))
     print(Counter(hs))
 
-def resize_images():
-    src_img_filenames = 'data_raw/images/training/'
-    src_label_filenames = 'data_raw/labels/training_cleaned/'
-    dst_img_filenames = 'data_raw/images/training_resized_384/'
-    dst_label_filenames = 'data_raw/labels/training_yolo_384/'
 
-    img_filenames = os.listdir(src_img_filenames)
-    label_filenames = os.listdir(src_label_filenames)
+def resize_images(img_src_dir, label_src_dir, img_dst_dir, label_dst_dir):
+    """
+    Resize images and its corresponding bounding boxes (labels)
+    """
+
+    img_filenames = os.listdir(img_src_dir)
+    label_filenames = os.listdir(label_src_dir)
 
     for i in range(len(img_filenames)):
         img_filename = img_filenames[i]
-        label_filename= label_filenames[i]
+        label_filename = label_filenames[i]
 
-        img = cv2.imread(f'{src_img_filenames}{img_filename}')
-        bounding_boxes = get_bounding_boxes(f'{src_label_filenames}{label_filename}')
+        img = cv2.imread(f'{img_src_dir}{img_filename}')
+        bounding_boxes = get_bounding_boxes(f'{label_src_dir}{label_filename}')
 
         # cropped
         img, bounding_boxes = cut_img(img, bounding_boxes)
-        bounding_boxes_yolo = [coords_to_yolo(img, bb['left'], bb['top'], bb['right'], bb['bottom']) for bb in bounding_boxes]
+        bounding_boxes_yolo = [coords_to_yolo(img, bb['left'], bb['top'], bb['right'], bb['bottom']) for bb in
+                               bounding_boxes]
         img = cv2.resize(img, (384, 384), interpolation=cv2.INTER_AREA)
 
-        cv2.imwrite(f'{dst_img_filenames}{img_filename}', img)
-        with open(f'{dst_label_filenames}{label_filename}', 'w') as output:
+        cv2.imwrite(f'{img_dst_dir}{img_filename}', img)
+        with open(f'{label_dst_dir}{label_filename}', 'w') as output:
             for bb in bounding_boxes_yolo:
                 output.write(f"{0} {bb[0]} {bb[1]} {bb[2]} {bb[3]}\n")
 
+
 def change_str_label_to_int():
+    """
+    Change 'Cyclist' classname to 0 as yolov4 expects an int for a class id
+    """
     src_dir = 'data_raw/labels/training_yolo/'
     dst_dir = 'data_raw/labels/training_yolo_fixed/'
 
@@ -271,3 +363,31 @@ def change_str_label_to_int():
                     label_split[0] = '0'
                     print(label_split)
                     output.write(f"{' '.join(label_split)}\n")
+
+
+def rename_files(src_dir):
+    """
+    Rename files in a given directory to a format '{id}.{file_extension}', for example: somefile2412.jpg to 000001.jpg
+    """
+    filenames = os.listdir(src_dir)
+    counter = 0
+    for filename in filenames:
+        file_type = filename.split('.')[1]
+        new_file_id = id_to_str(counter)
+        os.rename(f'{src_dir}{filename}', f'{src_dir}{new_file_id}.{file_type}')
+
+        counter += 1
+
+
+def display_random_img(img_src_dir, label_src_dir):
+    """
+    Display randomg img with its bounding boxes
+    """
+
+    filenames = os.listdir(img_src_dir)
+    while True:
+        filename = random.choice(filenames)
+        img_id = int(filename.split('.')[0])
+        print('-----------------', filename, '-----------------')
+
+        display_image(img_id, img_src_dir, label_src_dir)

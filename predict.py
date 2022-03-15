@@ -8,6 +8,11 @@ from PIL import Image
 from sort_tracking import *
 import numpy as np
 
+# from deep_sort import nn_matching
+# from deep_sort.detection import Detection
+# from deep_sort.tracker import Tracker
+# from deep_sort import generate_detections as gdet
+
 
 def draw_text(img, text,
               pos,
@@ -42,7 +47,7 @@ def predict_img():
     print(results.pandas().xyxy[0])
 
 
-def predict_video(input_video_path, output_video_path):
+def predict_video_yolov5(input_video_path, output_video_path):
     model = torch.hub.load('yolov5-master', 'custom', path='yolov5_weights/best_l.pt', source='local')
     cap = cv2.VideoCapture(input_video_path)
 
@@ -151,10 +156,6 @@ def predict_video_yolov4(input_video_path, output_video_path):
 
                 draw_arrow(frame, center_xs[-1], center_ys[-1], m, dist, direction)
 
-              # x1, y1 = get_center_pt(tracker.observed_history[-bb_id])
-                # x2, y2 = get_center_pt(tracker.observed_history[-1])
-                # draw_arrow(frame, x1, y1, x2, y2)
-
         # Save to mp4
         out.write(frame)
         cv2.imshow('frame', frame)
@@ -165,6 +166,87 @@ def predict_video_yolov4(input_video_path, output_video_path):
     cap.release()
     out.release()
     cv2.destroyAllWindows()
+
+# TODO: Add deepsort to project
+# def predict_video_yolov4_deepsort(input_video_path, output_video_path):
+#     net = cv2.dnn.readNetFromDarknet('yolov4-obj.cfg', 'yolov4_weights/yolov4-obj_best.weights')
+#     net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+#     net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+#
+#     model = cv2.dnn_DetectionModel(net)
+#     model.setInputParams(scale=1 / 255, size=(384, 384), swapRB=True)
+#
+#     cap = cv2.VideoCapture(input_video_path)
+#
+#     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))  # float `width`
+#     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+#     fps = cap.get(cv2.CAP_PROP_FPS)
+#     print(width, height, fps)
+#     fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+#     out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+#
+#     # Deep Sort
+#     max_cosine_distance = 0.7
+#     nn_budget = None
+#     model_filename = 'model_data/mars-small128.pb'
+#     encoder = gdet.create_box_encoder(model_filename, batch_size=1)
+#     metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
+#     tracker = Tracker(metric)
+#
+#     last_tracked_bbs = []
+#     Track_only = ["Cyclist"]
+#
+#     while True:
+#         ret, frame = cap.read()
+#         if not ret:
+#             print("Can't receive frame (stream end?). Exiting ...")
+#             break
+#
+#         classIds, scores, boxes = model.detect(frame, confThreshold=0.6, nmsThreshold=0.4)
+#         bboxes = convert_yolov4_bb(classIds, scores, boxes)
+#
+#         # extract bboxes to boxes (x, y, width, height), scores and names
+#         boxes, scores, names = [], [], []
+#         for bbox in bboxes:
+#             if len(Track_only) != 0:
+#                 boxes.append([bbox[0].astype(int), bbox[1].astype(int), bbox[2].astype(int) - bbox[0].astype(int),
+#                               bbox[3].astype(int) - bbox[1].astype(int)])
+#                 scores.append(bbox[4])
+#                 names.append('Cyclist')
+#
+#         # Obtain all the detections for the given frame.
+#         boxes = np.array(boxes)
+#         names = np.array(names)
+#         scores = np.array(scores)
+#         features = np.array(encoder(frame, boxes))
+#         detections = [Detection(bbox, score, class_name, feature) for bbox, score, class_name, feature in
+#                       zip(boxes, scores, names, features)]
+#
+#         # Pass detections to the deepsort object and obtain the track information.
+#         tracker.predict()
+#         tracker.update(detections)
+#
+#         # for row in tracked_bbs:
+#         #     cv2.rectangle(frame, (int(row[0]), int(row[1])), (int(row[2]), int(row[3])), (255, 0, 0), 2)
+#         #     draw_text(frame, f"Cyclist: {int(row[4])}", (int(row[0]), int(row[1])))
+#
+#         # display arrows
+#         for tracker in tracker.tracks:
+#             bbox = tracker.to_tlbr()  # Get the corrected/predicted bounding box
+#             class_name = tracker.get_class()  # Get the class name of particular object
+#             tracking_id = tracker.track_id  # Get the ID for the particular track
+#             print(bbox, class_name, tracking_id)
+#
+#         # Save to mp4
+#         out.write(frame)
+#         cv2.imshow('frame', frame)
+#         c = cv2.waitKey(1)
+#         if c & 0xFF == ord('q'):
+#             break
+#
+#     cap.release()
+#     out.release()
+#     cv2.destroyAllWindows()
 
 
 def convert_yolov4_bb(classIds, scores, boxes):
@@ -199,14 +281,6 @@ def get_center_x(bb):
 
 def get_center_y(bb):
     return (bb[1] + bb[3]) / 2
-
-# def draw_arrow(frame, x1, y1, x2, y2):
-#     dir_x = x2 - x1
-#     dir_y = y2 - y1
-#
-#     new_x2 = x2 + dir_x * 5
-#     new_y2 = y2 + dir_y * 5
-#     cv2.arrowedLine(frame, (int(x2), int(y2)), (int(new_x2), int(new_y2)), (255, 0, 0), 3)
 
 def draw_arrow(frame, x1, y1, m, dist, direction):
     dist_scaled = dist / 1
