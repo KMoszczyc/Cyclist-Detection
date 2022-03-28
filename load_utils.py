@@ -264,7 +264,7 @@ def filter_images_without_cyclists(img_src_dir, label_src_dir):
     """
     Remove images without cyclists (KITTI) 
     """
-    
+
     img_filenames = os.listdir(img_src_dir)
     label_filenames = os.listdir(label_src_dir)
     count = 0
@@ -277,29 +277,40 @@ def filter_images_without_cyclists(img_src_dir, label_src_dir):
     print(count)
 
 
-def split_dataset():
-    src_img = 'data_raw/images/training_resized/'
-    src_labels = 'data_raw/labels/training_yolo_fixed/'
+def split_dataset(src_path, dst_path):
+    """
+    Split dataset to train and valid dataset in yolo format (text files and images in the same folder, f.e: 000001.jpg, 000001.txt)
+    """
 
-    dst_img_train = 'data/images/train/'
-    dst_img_valid = 'data/images/valid/'
-    dst_labels_train = 'data/labels/train/'
-    dst_labels_valid = 'data/labels/valid/'
+    # Define paths
+    root = os.getcwd()
+    src_path = f'{root}{src_path}'
+    dst_path = f'{root}{dst_path}'
+    src_img = f'{src_path}/images/'
+    src_labels = f'{src_path}/labels/'
+
+    dst_train = f'{dst_path}/train/'
+    dst_valid = f'{dst_path}/valid/'
+
+    # Create destination directories
+    os.makedirs(dst_train)
+    os.makedirs(dst_valid)
 
     img_filenames = os.listdir(src_img)
-    label_filenames = os.listdir(src_labels)
+    random.shuffle(img_filenames)
 
-    split_pivot = int(len(img_filenames) * 0.8)
+    # Training set - 80%, validation set - 20%
+    train_valid_split = int(len(img_filenames) * 0.8)
 
     for i in range(len(img_filenames)):
         img = img_filenames[i]
-        label = label_filenames[i]
-        if i < split_pivot:  # train
-            shutil.copyfile(f'{src_img}{img}', f'{dst_img_train}{img}')
-            shutil.copyfile(f'{src_labels}{label}', f'{dst_labels_train}{label}')
-        else:  # valid
-            shutil.copyfile(f'{src_img}{img}', f'{dst_img_valid}{img}')
-            shutil.copyfile(f'{src_labels}{label}', f'{dst_labels_valid}{label}')
+        label = img.split('.')[0] + '.txt'
+        if i < train_valid_split:  # train
+            shutil.copyfile(f'{src_img}{img}', f'{dst_train}{img}')
+            shutil.copyfile(f'{src_labels}{label}', f'{dst_train}{label}')
+        else:  # test
+            shutil.copyfile(f'{src_img}{img}', f'{dst_valid}{img}')
+            shutil.copyfile(f'{src_labels}{label}', f'{dst_valid}{label}')
 
 
 def count_img_sizes(directory):

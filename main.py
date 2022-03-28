@@ -15,19 +15,17 @@ if __name__ == '__main__':
 
     # rename_files('data_tsinghua/labels/')
     # filter_images_without_cyclists()
-    # split_dataset()
+    split_dataset('/data/data_tsinghua', '/data/data_tsinghua_split')
     # resize_images()
     # change_str_label_to_int()
     # count_img_sizes()
 
-    display_random_img('data/data_tsinghua/images/', 'data/data_tsinghua/labels/')
-
+    # display_random_img('data/data_tsinghua_split/images/train/', 'data/data_tsinghua_split/labels/train/')
 
     # input_video_path = 'test/bikes2.mp4'
     # output_video_path = 'results/deepsort_out.mp4'
     # predict_video(input_video_path, output_video_path)
     # predict_video_yolov4(input_video_path, output_video_path)
     # predict_video_yolov4_deepsort(input_video_path, output_video_path)
-
 
     # predict_img()
