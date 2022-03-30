@@ -28,6 +28,7 @@ import cv2
 import shutil
 import json
 import random
+import numpy as np
 
 TRAIN_IMAGES_DIR = 'data_raw/images/training/'
 TRAIN_IMAGES_RESIZED_DIR = 'data_raw/images/training_resized_370/'
@@ -55,16 +56,16 @@ def display_image(id, img_src_dir, label_src_dir):
     label_path = f'{label_src_dir}{str_id}.txt'
     img = cv2.imread(img_path)
 
-    bounding_boxes_yolo = get_yolo_bounding_boxes(label_path)
+    bounding_boxes_yolo = read_yolo_bounding_boxes(label_path)
 
     # cropped
     # img, bounding_boxes = cut_img(img, bounding_boxes)
-    # bounding_boxes_yolo = [coords_to_yolo(img, bb['left'], bb['top'], bb['right'], bb['bottom']) for bb in bounding_boxes]
+    # bounding_boxes_yolo = [coords_to_yolo(img.shape, bb['left'], bb['top'], bb['right'], bb['bottom']) for bb in bounding_boxes]
     # img = cv2.resize(img, (370, 370), interpolation=cv2.INTER_AREA)
 
     for bb in bounding_boxes_yolo:
         print(bb)
-        coords = yolo_to_coords(img, bb[0], bb[1], bb[2], bb[3])
+        coords = yolo_to_coords(img.shape, bb[0], bb[1], bb[2], bb[3])
         cv2.rectangle(img, (coords[0], coords[1]), (coords[2], coords[3]), (255, 0, 0), 2)
     cv2.imshow('img', img)
 
@@ -113,14 +114,14 @@ def cut_img(img, bounding_boxes):
     return img[top:, left:right], bounding_boxes
 
 
-def coords_to_yolo(img, left, top, right, bottom):
+def coords_to_yolo(img_size, left, top, right, bottom):
     """
     Convert cartesian coordinates bounding box format to yolo format:
         x1, y1, x2, y2 to x_center, y_center, width, height
     """
 
-    h = img.shape[0]
-    w = img.shape[1]
+    h = img_size[0]
+    w = img_size[1]
 
     x_center = (left + right) / 2 / w
     y_center = (top + bottom) / 2 / h
@@ -129,15 +130,31 @@ def coords_to_yolo(img, left, top, right, bottom):
 
     return x_center, y_center, box_w, box_h
 
+def coords_to_yolo_sqr(img_size, left, top, right, bottom):
+    """
+    Convert cartesian coordinates bounding box format to yolo format,
+        but target image has been squared with black padding
+    """
 
-def yolo_to_coords(img, x_center, y_center, box_w, box_h):
+    h = img_size[0]
+    w = img_size[1]
+    padding = (w - h) / 2
+
+    x_center = (left + right) / 2 / w
+    y_center = ((top + bottom) / 2 + padding) / (h + padding*2)
+    box_w = (right - left) / w
+    box_h = (bottom - top) / (h + padding*2)
+
+    return x_center, y_center, box_w, box_h
+
+def yolo_to_coords(img_size, x_center, y_center, box_w, box_h):
     """
     Convert yolo bounding box format to cartesian coordinates :
     x_center, y_center, width, height to x1, y1, x2, y2 (left, top, right, bottom)
     """
 
-    h = img.shape[0]
-    w = img.shape[1]
+    h = img_size[0]
+    w = img_size[1]
 
     x_center = x_center * w
     y_center = y_center * h
@@ -170,17 +187,17 @@ def get_bounding_box(str_label):
             'right': int(float(line_split[3])), 'bottom': int(float(line_split[4]))}
 
 
-def get_yolo_bounding_boxes(bb_path):
+def read_yolo_bounding_boxes(bb_path):
     """
     Read yolo bounding boxes from a file
     """
-    with open(f'{bb_path}', 'r') as f:
+    with open(bb_path, 'r') as f:
         labels = f.read().splitlines()
-        bounding_boxes = [get_yolo_bounding_box(line) for line in labels]
+        bounding_boxes = [parse_yolo_bounding_box(line) for line in labels]
         return bounding_boxes
 
 
-def get_yolo_bounding_box(str_label):
+def parse_yolo_bounding_box(str_label):
     """
     Convert yolo bounding box from a string to a tuple of floats
     """
@@ -253,12 +270,12 @@ def json_to_yolo_label(src, dst):
             identity = child['identity']
 
             if identity == 'cyclist':
-                bounding_boxes_yolo.append(coords_to_yolo(img, left, top, right, bottom))
+                bounding_boxes_yolo.append(coords_to_yolo(img.shape, left, top, right, bottom))
 
-        with open(f'{dst}{dst_filename}', 'w') as output:
-            for bb in bounding_boxes_yolo:
-                output.write(f"{0} {bb[0]} {bb[1]} {bb[2]} {bb[3]}\n")
-
+        # with open(f'{dst}{dst_filename}', 'w') as output:
+        #     for bb in bounding_boxes_yolo:
+        #         output.write(f"{0} {bb[0]} {bb[1]} {bb[2]} {bb[3]}\n")
+        write_yolo_bboxes(f'{dst}{dst_filename}', bounding_boxes_yolo)
 
 def filter_images_without_cyclists(img_src_dir, label_src_dir):
     """
@@ -329,40 +346,59 @@ def count_img_sizes(directory):
     print(Counter(hs))
 
 
-def resize_images(img_src_dir, label_src_dir, img_dst_dir, label_dst_dir):
+def resize_images(src_dir, dst_dir, target_size=416, square_img=True):
     """
-    Resize images and its corresponding bounding boxes (labels)
+    Resize images (no need to adjust bounding boxes as they are in yolo format which handles that)
     """
 
-    img_filenames = os.listdir(img_src_dir)
-    label_filenames = os.listdir(label_src_dir)
+    img_filenames = [filename for filename in os.listdir(src_dir) if filename.endswith('.jpg')]
 
     for i in range(len(img_filenames)):
         img_filename = img_filenames[i]
-        label_filename = label_filenames[i]
+        label_filename = img_filename.split('.')[0] + '.txt'
 
-        img = cv2.imread(f'{img_src_dir}{img_filename}')
-        bounding_boxes = get_bounding_boxes(f'{label_src_dir}{label_filename}')
+        img = cv2.imread(f'{src_dir}{img_filename}')
 
-        # cropped
-        img, bounding_boxes = cut_img(img, bounding_boxes)
-        bounding_boxes_yolo = [coords_to_yolo(img, bb['left'], bb['top'], bb['right'], bb['bottom']) for bb in
-                               bounding_boxes]
-        img = cv2.resize(img, (384, 384), interpolation=cv2.INTER_AREA)
+        # Adjust bounding boxes when squaring the image (filling missing space with black pixels)
+        if square_img:
+            yolo_bboxes = read_yolo_bounding_boxes(f'{src_dir}{label_filename}')
+            coord_bboxes = [yolo_to_coords(img.shape, bb[0], bb[1], bb[2], bb[3]) for bb in yolo_bboxes]
+            yolo_bboxes_sqr = [coords_to_yolo_sqr(img.shape, bb[0], bb[1], bb[2], bb[3]) for bb in coord_bboxes]
+            write_yolo_bboxes(f'{dst_dir}{label_filename}', yolo_bboxes_sqr)
+        else:
+            shutil.copy(f'{src_dir}{label_filename}', f'{dst_dir}{label_filename}')
 
-        cv2.imwrite(f'{img_dst_dir}{img_filename}', img)
-        with open(f'{label_dst_dir}{label_filename}', 'w') as output:
-            for bb in bounding_boxes_yolo:
-                output.write(f"{0} {bb[0]} {bb[1]} {bb[2]} {bb[3]}\n")
+        # crop
+        # img, bounding_boxes = cut_img(img, bounding_boxes)
 
+        scale = target_size / max(img.shape[1], img.shape[0])
+        width = int(img.shape[1] * scale)
+        height = int(img.shape[0] * scale)
+
+        img = cv2.resize(img, (width, height), interpolation=cv2.INTER_AREA)
+        img_squared = square_image(img)
+
+        cv2.imwrite(f'{dst_dir}{img_filename}', img_squared, [int(cv2.IMWRITE_JPEG_QUALITY),
+                                                      90])  # 90% jpg quality reduces file size significantly, without losing the image quality
+
+def square_image(img):
+    """
+    Square image without changing the aspect ratio - fill with black pixels.
+    """
+    s = max(img.shape[0:2])
+    f_img = np.zeros((s, s, 3), np.uint8)
+    ax, ay = (s - img.shape[1]) // 2, (s - img.shape[0]) // 2
+    f_img[ay:img.shape[0] + ay, ax:ax + img.shape[1]] = img
+
+    return f_img
 
 def change_str_label_to_int():
     """
     Change 'Cyclist' classname to 0 as yolov4 expects an int for a class id
     """
+
     src_dir = 'data_raw/labels/training_yolo/'
     dst_dir = 'data_raw/labels/training_yolo_fixed/'
-
     filenames = os.listdir(src_dir)
 
     for filename in filenames:
@@ -380,6 +416,7 @@ def rename_files(src_dir):
     """
     Rename files in a given directory to a format '{id}.{file_extension}', for example: somefile2412.jpg to 000001.jpg
     """
+
     filenames = os.listdir(src_dir)
     counter = 0
     for filename in filenames:
@@ -402,3 +439,9 @@ def display_random_img(img_src_dir, label_src_dir):
         print('-----------------', filename, '-----------------')
 
         display_image(img_id, img_src_dir, label_src_dir)
+
+
+def write_yolo_bboxes(label_dst, yolo_bboxes):
+    with open(label_dst, 'w') as output:
+        for bb in yolo_bboxes:
+            output.write(f"{0} {bb[0]} {bb[1]} {bb[2]} {bb[3]}\n")
