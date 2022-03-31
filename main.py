@@ -8,22 +8,29 @@ TRAIN_IMAGES_DIR = 'data_raw/images/training/'
 TRAIN_LABELS_CLEANED_DIR = 'data_raw/labels/training_cleaned/'
 
 if __name__ == '__main__':
-    print('halo')
+    print('Lets gooo!')
+
+    # cut_imgs('data/data_raw_kitti/images/training/', 'data/data_raw_kitti/labels/training_cleaned_v2/','data/data_raw_kitti/images/training_cut/',  'data/data_raw_kitti/labels/training_cut/', 640)
+
+    # coords_to_yolo_label('data/data_raw_kitti/images/training_cut/', 'data/data_raw_kitti/labels/training_cut/', 'data/data_raw_kitti/labels/training_cut_yolo/')
+    # change_str_label_to_int('data/data_raw_kitti/labels/training_cleaned/', 'data/data_raw_kitti/labels/training_cleaned_v2/')
     # clean_labels()
     # png_to_jpg('data_raw_tsinghua_big/images/', 'data_tsinghua/images/')
     # json_to_yolo_label('data_raw_tsinghua_big/labels/', 'data_tsinghua/labels/')
 
     # rename_files('data_tsinghua/labels/')
     # filter_images_without_cyclists()
-    # split_dataset('/data/data_tsinghua', '/data/data_tsinghua_split')
+    split_dataset('data/data_raw_kitti/kitti_416/', 'data/data_raw_kitti/kitti_416_final/')
 
-    # resize_images('data/data_tsinghua_split/train/', 'data/data_tsinghua_split_downsized/train/', 640, square_img=True)
-    # resize_images('data/data_tsinghua_split/valid/', 'data/data_tsinghua_split_downsized/valid/', 640, square_img=True)
+    # resize_images('data/data_raw_kitti/merged/', 'data/data_raw_kitti/data_kitti_416/', 416, square_img=True)
+    # resize_images('data/data_tsinghua_split/valid/', 'data/data_tsinghua_416/valid/', 416, square_img=True)
 
     # change_str_label_to_int()
     # count_img_sizes()
 
-    display_random_img('data/data_tsinghua_split_downsized/train/', 'data/data_tsinghua_split_downsized/train/')
+    # display_random_img('data/data_tsinghua_416/train/', 'data/data_tsinghua_416/train/')
+    display_random_img('data/data_raw_kitti/kitti_416_final/train/', 'data/data_raw_kitti/kitti_416_final/train/', is_yolo=True)
+
 
     # input_video_path = 'test/bikes2.mp4'
     # output_video_path = 'results/deepsort_out.mp4'
