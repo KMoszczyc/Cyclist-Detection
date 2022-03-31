@@ -1,0 +1,5 @@
+classes = 1
+train = /content/gdrive/MyDrive/magisterka/train.txt
+valid = /content/gdrive/MyDrive/magisterka/valid.txt
+names = /content/gdrive/MyDrive/magisterka/obj.names
+backup = /content/gdrive/MyDrive/magisterka/
