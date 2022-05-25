@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     # rename_files('data_tsinghua/labels/')
     # filter_images_without_cyclists()
-    split_dataset('data/data_raw_kitti/kitti_416/', 'data/data_raw_kitti/kitti_416_final/')
+    # split_dataset('data/data_raw_kitti/kitti_416/', 'data/data_raw_kitti/kitti_416_final/')
 
     # resize_images('data/data_raw_kitti/merged/', 'data/data_raw_kitti/data_kitti_416/', 416, square_img=True)
     # resize_images('data/data_tsinghua_split/valid/', 'data/data_tsinghua_416/valid/', 416, square_img=True)
@@ -30,7 +30,6 @@ if __name__ == '__main__':
 
     # display_random_img('data/data_tsinghua_416/train/', 'data/data_tsinghua_416/train/')
     display_random_img('data/data_raw_kitti/kitti_416_final/train/', 'data/data_raw_kitti/kitti_416_final/train/', is_yolo=True)
-
 
     # input_video_path = 'test/bikes2.mp4'
     # output_video_path = 'results/deepsort_out.mp4'

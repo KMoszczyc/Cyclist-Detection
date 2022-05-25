@@ -47,7 +47,6 @@ def id_to_str(id):
 
 
 def create_dir(path):
-
     os.umask(0)
     if not os.path.exists(path):
         print('dir created:', path)
@@ -368,7 +367,7 @@ def split_dataset(src_path, dst_path):
         if i < train_valid_split:  # train
             shutil.copyfile(f'{src_path}{img}', f'{dst_train}{img}')
             shutil.copyfile(f'{src_path}{label}', f'{dst_train}{label}')
-        else:  # test
+        else:  # valid
             shutil.copyfile(f'{src_path}{img}', f'{dst_valid}{img}')
             shutil.copyfile(f'{src_path}{label}', f'{dst_valid}{label}')
 
