@@ -98,13 +98,13 @@ def predict_video_yolov5(input_video_path, output_video_path):
     cv2.destroyAllWindows()
 
 
-def predict_video_yolov4(input_video_path, output_video_path):
-    net = cv2.dnn.readNetFromDarknet('yolov4-obj.cfg', 'yolov4_weights/yolov4-obj_best.weights')
+def predict_video_yolov4(input_video_path, output_video_path, weights_path):
+    net = cv2.dnn.readNetFromDarknet('yolov4-configs/yolov4-obj.cfg', weights_path)
     net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
     net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
     model = cv2.dnn_DetectionModel(net)
-    model.setInputParams(scale=1 / 255, size=(384, 384), swapRB=True)
+    model.setInputParams(scale=1 / 255, size=(416, 416), swapRB=True)
 
     cap = cv2.VideoCapture(input_video_path)
 
