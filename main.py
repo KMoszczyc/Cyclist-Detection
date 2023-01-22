@@ -1,5 +1,5 @@
 from load_utils import *
-from predict import predict_video_yolov5, predict_img, predict_video_yolov4
+from predict import predict_img, predict_video_yolov4
 import os
 import cv2
 import random
@@ -29,13 +29,18 @@ if __name__ == '__main__':
     # count_img_sizes()
 
     # display_random_img('data/data_tsinghua_416/train/', 'data/data_tsinghua_416/train/')
-    # display_random_img('data/data_raw_kitti/kitti_416_final/train/', 'data/data_raw_kitti/kitti_416_final/train/', is_yolo=True)
+    # display_random_img('data/data_raw_kitti/data_kitti_416/train/', 'data/data_raw_kitti/data_kitti_416/train/', is_yolo=True)
+    display_random_img('data/data_raw_kitti/images/training_raw/', 'data/data_raw_kitti/labels/training_raw/', is_yolo=False, is_raw_kitti=True)
 
-    input_video_path = 'data/test_videos/bikes2.mp4'
-    output_video_path = 'results_videos/yolov4_sort.mp4'
-    weights_path = 'yolov4_weights/yolov4-kitti_416_best.weights'
+    # labels = read_raw_kitti_labels('data/data_raw_kitti/labels/training_raw/000001.txt')
+    # filtered_labels = [label for label in labels if label['type']=='Cyclist']
+    # print(filtered_labels)
 
-    predict_video_yolov4(input_video_path, output_video_path, weights_path)
+    # input_video_path = 'data/test_videos/bikes2.mp4'
+    # output_video_path = 'results_videos/yolov4_sort.mp4'
+    # weights_path = 'yolov4_weights/yolov4-kitti_416_best.weights'
+    #
+    # predict_video_yolov4(input_video_path, output_video_path, weights_path)
 
     # predict_video(input_video_path, output_video_path)
     # predict_video_yolov4_deepsort(input_video_path, output_video_path)

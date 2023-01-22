@@ -3,7 +3,7 @@
 # The sizes of the boxes. Again, the sizes should be consistent for consecutive frames.
 
 import cv2
-import torch
+# import torch
 from PIL import Image
 from sort_tracking import *
 import numpy as np
@@ -34,7 +34,7 @@ def draw_text(img, text,
 def predict_img():
     # Model
     # model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
-    model = torch.hub.load('yolov5-master', 'custom', path='best_s.pt', source='local')
+    # model = torch.hub.load('yolov5-master', 'custom', path='best_s.pt', source='local')
     img = Image.open('test/bike2.jpg')
 
     # Inference
@@ -47,55 +47,55 @@ def predict_img():
     print(results.pandas().xyxy[0])
 
 
-def predict_video_yolov5(input_video_path, output_video_path):
-    model = torch.hub.load('yolov5-master', 'custom', path='yolov5_weights/best_l.pt', source='local')
-    cap = cv2.VideoCapture(input_video_path)
-
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))  # float `width`
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    print(width, height, fps)
-    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
-
-    mot_tracker = Sort(max_age=3,
-                       min_hits=3,
-                       iou_threshold=0.3)
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("Can't receive frame (stream end?). Exiting ...")
-            break
-
-        resized_frame = cv2.resize(frame, (370, 370), interpolation=cv2.INTER_AREA)
-        results = model(resized_frame, size=370)
-        results_df = results.pandas().xyxy[0]
-
-        bb = convert_yolov5_bb(results_df, width, height)
-        detections = bb if len(bb) > 0 else np.empty((0, 5))
-        tracked_bb = mot_tracker.update(detections)
-
-        # print(detections)
-
-        for row in bb:
-            cv2.rectangle(frame, (int(row[0]), int(row[1])), (int(row[2]), int(row[3])), (0, 255, 0), 2)
-
-        for row in tracked_bb:
-            cv2.rectangle(frame, (int(row[0]), int(row[1])), (int(row[2]), int(row[3])), (255, 0, 0), 1)
-            # draw_text(frame, f"Cyclist {round(row[4], 2)}", (int(row[0]), int(row[1])))
-            draw_text(frame, f"Cyclist: {int(row[4])}", (int(row[0]), int(row[1])))
-
-        # Save to mp4
-        # out.write(frame)
-        cv2.imshow('frame', frame)
-        c = cv2.waitKey(1)
-        if c & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    out.release()
-    cv2.destroyAllWindows()
+# def predict_video_yolov5(input_video_path, output_video_path):
+#     model = torch.hub.load('yolov5-master', 'custom', path='yolov5_weights/best_l.pt', source='local')
+#     cap = cv2.VideoCapture(input_video_path)
+#
+#     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))  # float `width`
+#     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+#     fps = cap.get(cv2.CAP_PROP_FPS)
+#     print(width, height, fps)
+#     fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+#     out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+#
+#     mot_tracker = Sort(max_age=3,
+#                        min_hits=3,
+#                        iou_threshold=0.3)
+#
+#     while True:
+#         ret, frame = cap.read()
+#         if not ret:
+#             print("Can't receive frame (stream end?). Exiting ...")
+#             break
+#
+#         resized_frame = cv2.resize(frame, (370, 370), interpolation=cv2.INTER_AREA)
+#         results = model(resized_frame, size=370)
+#         results_df = results.pandas().xyxy[0]
+#
+#         bb = convert_yolov5_bb(results_df, width, height)
+#         detections = bb if len(bb) > 0 else np.empty((0, 5))
+#         tracked_bb = mot_tracker.update(detections)
+#
+#         # print(detections)
+#
+#         for row in bb:
+#             cv2.rectangle(frame, (int(row[0]), int(row[1])), (int(row[2]), int(row[3])), (0, 255, 0), 2)
+#
+#         for row in tracked_bb:
+#             cv2.rectangle(frame, (int(row[0]), int(row[1])), (int(row[2]), int(row[3])), (255, 0, 0), 1)
+#             # draw_text(frame, f"Cyclist {round(row[4], 2)}", (int(row[0]), int(row[1])))
+#             draw_text(frame, f"Cyclist: {int(row[4])}", (int(row[0]), int(row[1])))
+#
+#         # Save to mp4
+#         # out.write(frame)
+#         cv2.imshow('frame', frame)
+#         c = cv2.waitKey(1)
+#         if c & 0xFF == ord('q'):
+#             break
+#
+#     cap.release()
+#     out.release()
+#     cv2.destroyAllWindows()
 
 
 def predict_video_yolov4(input_video_path, output_video_path, weights_path):
@@ -119,18 +119,24 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path):
                        min_hits=3,
                        iou_threshold=0.3)
     last_tracked_bbs = []
-
+    counter = 0
+    yolo_times = []
+    deepsort_times = []
     while True:
         ret, frame = cap.read()
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
 
+        start_time = time.time()
         classIds, scores, boxes = model.detect(frame, confThreshold=0.6, nmsThreshold=0.4)
-        bbs = convert_yolov4_bb(classIds, scores, boxes)
+        yolo_end_time = time.time()
 
+        bbs = convert_yolov4_bb(classIds, scores, boxes)
         detections = bbs if len(bbs) > 0 else np.empty((0, 5))
         tracked_bbs = mot_tracker.update(detections)
+
+        sort_end_time = time.time()
 
         # without tracking
         # for row in bbs:
@@ -155,6 +161,22 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path):
                 m, b = np.polyfit(center_xs, center_ys, 1)
 
                 draw_arrow(frame, center_xs[-1], center_ys[-1], m, dist, direction)
+
+        counter += 1
+        yolo_time = yolo_end_time - start_time
+        deepsort_time = sort_end_time - yolo_end_time
+        yolo_times.append(yolo_time)
+        deepsort_times.append(deepsort_time)
+
+        if counter > 100:
+            total_time_elapsed = time.time() - start_time
+            yolo_time_avg = f'{round((sum(yolo_times) / len(yolo_times)) * 1000, 3)}ms'
+            sort_time_avg = f'{round((sum(deepsort_times) / len(deepsort_times)) * 1000, 6)}ms'
+            fps = 1.0 / total_time_elapsed
+            counter = 0
+            yolo_times = []
+            deepsort_times = []
+            print('YOLO:', yolo_time_avg, 'Sort', sort_time_avg, 'Total time:', round(total_time_elapsed * 1000, 3), "FPS: ", fps)
 
         # Save to mp4
         out.write(frame)

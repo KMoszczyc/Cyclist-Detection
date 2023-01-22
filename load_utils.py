@@ -21,6 +21,7 @@
 # EXAMPLE
 # Car 0.00 1 2.04 334.85 178.94 624.50 372.04 1.57 1.50 3.68 -1.17 1.65 7.86 1.90
 
+
 from collections import Counter
 from PIL import Image
 import os
@@ -29,6 +30,7 @@ import shutil
 import json
 import random
 import numpy as np
+import kitti_util
 
 TRAIN_IMAGES_DIR = 'data_raw/images/training/'
 TRAIN_IMAGES_RESIZED_DIR = 'data_raw/images/training_resized_370/'
@@ -53,7 +55,7 @@ def create_dir(path):
         os.makedirs(path, mode=0o777)
 
 
-def display_image(id, img_src_dir, label_src_dir, is_yolo):
+def display_image(id, img_src_dir, label_src_dir, is_yolo, is_raw_kitti):
     """
     Display the image with given id with it's bounding boxes in yolo format.
     """
@@ -74,8 +76,51 @@ def display_image(id, img_src_dir, label_src_dir, is_yolo):
         coords = [int(coord) for coord in coords]
 
         cv2.rectangle(img, (coords[0], coords[1]), (coords[2], coords[3]), (255, 0, 0), 2)
+
     cv2.imshow('img', img)
 
+    cv2.waitKey(0)
+
+
+def display_raw_kitti_image(id, img_src_dir, label_src_dir):
+    str_id = id_to_str(id)
+    img_path = f'{img_src_dir}{str_id}.jpg'
+    label_path = f'{label_src_dir}{str_id}.txt'
+    calibration_path = f'{"data/data_raw_kitti/calibration_data/training/calib/"}{str_id}.txt'
+
+    calib = kitti_util.Calibration(calibration_path)
+    img = cv2.imread(img_path)
+    w = img.shape[1]
+    h = img.shape[0]
+    camera_point = (int(w / 2), h)
+
+    labels = read_raw_kitti_labels(label_path)
+    filtered_labels = [label for label in labels if label['type'] == 'Cyclist']
+
+    for label in filtered_labels:
+        print(label)
+        cv2.rectangle(img, (int(label['left']), int(label['top'])), (int(label['right']), int(label['bottom'])), (255, 0, 0), 2)
+        x1 = (label['right'] + label['left']) / 2
+        y1 = (label['top'] + label['bottom']) / 2
+        draw_arrow(img, x1, y1, label['angle'], 30)
+
+        corners_3d_cam2 = compute_3d_box_cam2(label['height'], label['width'], label['length'], label['x'], label['y'], label['z'], label['rotation_y'])
+        pts_2d = calib.project_rect_to_image(corners_3d_cam2.T)
+        image = kitti_util.draw_projected_box3d(img, pts_2d, color=(255, 0, 255), thickness=1)
+
+        # # Lines bot
+        # cv2.line(img, camera_point, (int(x1), int(y1)), (0, 0, 255), 2)
+        # draw_perpendicular_line(img, camera_point, (int(x1), int(y1)), 100)
+        #
+        # # Lines mid
+        # cv2.line(img, (int(w / 2), int(h / 2)), (int(x1), int(y1)), (0, 0, 255), 2)
+        # draw_perpendicular_line(img, (int(w / 2), int(h / 2)), (int(x1), int(y1)), 100)
+        #
+        # # Lines top
+        # cv2.line(img, (int(w / 2), 0), (int(x1), int(y1)), (0, 0, 255), 2)
+        # draw_perpendicular_line(img, (int(w / 2), 0), (int(x1), int(y1)), 100)
+
+    cv2.imshow('img', img)
     cv2.waitKey(0)
 
 
@@ -214,11 +259,29 @@ def parse_coords_bounding_box(str_label):
             'right': float(line_split[3]), 'bottom': float(line_split[4])}
 
 
-def read_bounding_boxes(bb_path):
+def read_raw_kitti_labels(label_path):
     """
-    Read bounding boxes from a text file
+    Read bounding boxes from the label text file
     """
-    with open(bb_path, 'r') as f:
+
+    def parse_kitti_label(str_label):
+        parameter_names = ['type', 'truncated', 'occluded', 'angle', 'left', 'top', 'right', 'bottom', 'height', 'width', 'length', 'x', 'y', 'z', 'rotation_y']
+        parameters = str_label.split(' ')
+        parsed_parameters = [parameters[0]] + [float(param) for param in parameters[1:]]
+
+        return {parameter_names[i]: parsed_parameters[i] for i in range(len(parameter_names))}
+
+    with open(label_path, 'r') as f:
+        labels = f.read().splitlines()
+        parsed_labels = [parse_kitti_label(line) for line in labels]
+        return parsed_labels
+
+
+def read_bounding_boxes(label_path):
+    """
+    Read bounding boxes from the label text file
+    """
+    with open(label_path, 'r') as f:
         labels = f.read().splitlines()
         bounding_boxes = [parse_bounding_box(line) for line in labels]
         return bounding_boxes
@@ -470,7 +533,7 @@ def rename_files(src_dir):
         counter += 1
 
 
-def display_random_img(img_src_dir, label_src_dir, is_yolo=True):
+def display_random_img(img_src_dir, label_src_dir, is_yolo=True, is_raw_kitti=False):
     """
     Display randomg img with its bounding boxes
     """
@@ -480,8 +543,10 @@ def display_random_img(img_src_dir, label_src_dir, is_yolo=True):
         filename = random.choice(filenames)
         img_id = int(filename.split('.')[0])
         print('-----------------', filename, '-----------------')
-
-        display_image(img_id, img_src_dir, label_src_dir, is_yolo)
+        if is_raw_kitti:
+            display_raw_kitti_image(img_id, img_src_dir, label_src_dir)
+        else:
+            display_image(img_id, img_src_dir, label_src_dir, is_yolo)
 
 
 def write_yolo_bboxes(label_dst, yolo_bboxes):
@@ -494,3 +559,74 @@ def write_coords_bboxes(label_dst, coords_bboxes):
     with open(label_dst, 'w') as output:
         for bb in coords_bboxes:
             output.write(f"{0} {bb['left']} {bb['top']} {bb['right']} {bb['bottom']}\n")
+
+
+def draw_arrow(frame, x1, y1, angle, length):
+    """
+    Draw an arrow over OpenCV image
+    :param frame: Opencv img
+    :param x1: bb center x value
+    :param y1: bb center y value
+    :param angle: object rotation in radians [-PI...PI] - -PI left, -PI/2 - forward/away from the camera, 0 - Right, PI/2 backward/towards camera, PI = left
+    :param dist: arrow's length
+    :return:
+    """
+    # x2 = x1 + np.cos(angle) * dist
+    # y2 = y1 + np.sin(angle) * dist
+
+    x2, y2 = angle_to_vector((x1, y1), angle, length)
+    print(x1, y1, x2, y2)
+
+    cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2, tipLength=0.4)
+
+
+def angle_to_vector(start_point, angle, length):
+    """Calculate a 2D vector from start point, angle and length"""
+    x2 = start_point[0] + np.cos(angle) * length
+    y2 = start_point[1] + np.sin(angle) * length
+
+    print(angle, np.cos(angle) * length, np.sin(angle) * length)
+
+    return int(x2), int(y2)
+
+
+def two_points_to_angle(point_a, point_c):
+    """Calculate angle next to point_a (camera point) where point_c is the cyclist center and point_b has the same y as point_a and same x as point_c.
+             c
+            /|
+          /  |
+        /    |
+       a_____b
+    """
+
+    point_b = (point_c[0], point_a[1])
+    ab = point_b[0] - point_a[0]
+    bc = point_c[1] - point_b[1]
+    ac = np.sqrt(ab * ab + bc * bc)
+
+    return np.arccos(ab / ac)
+
+
+def draw_perpendicular_line(img, start_point, end_point, length):
+    """Draw a line perpendicular to the one going from start_point to end_point. The perpendicular one goes through the end_point"""
+
+    angle = two_points_to_angle(start_point, end_point)
+
+    if end_point[1] < start_point[1]:
+        angle *= -1
+    perpendicular_start_point = angle_to_vector(end_point, angle + np.pi / 2, length / 2)
+    perpendicular_end_point = angle_to_vector(end_point, angle - np.pi / 2, length / 2)
+
+    cv2.line(img, perpendicular_start_point, perpendicular_end_point, (0, 0, 255), 1)
+
+def compute_3d_box_cam2(h, w, l, x, y, z, yaw):
+    """
+    Return : 3xn in cam2 coordinate
+    """
+    R = np.array([[np.cos(yaw), 0, np.sin(yaw)], [0, 1, 0], [-np.sin(yaw), 0, np.cos(yaw)]])
+    x_corners = [l/2,l/2,-l/2,-l/2,l/2,l/2,-l/2,-l/2]
+    y_corners = [0,0,0,0,-h,-h,-h,-h]
+    z_corners = [w/2,-w/2,-w/2,w/2,w/2,-w/2,-w/2,w/2]
+    corners_3d_cam2 = np.dot(R, np.vstack([x_corners,y_corners,z_corners]))
+    corners_3d_cam2 += np.vstack([x, y, z])
+    return corners_3d_cam2
