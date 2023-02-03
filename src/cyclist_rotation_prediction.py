@@ -27,7 +27,7 @@ categories = read_classes()
 transform = preprocess()
 print(f"Computation device: {DEVICE}")
 
-image_path = 'data/rotation_prediction_test/car.jpg'
+image_path = '../data/rotation_prediction_test/car.jpg'
 image = cv2.imread(image_path)
 rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 # Apply transforms to the input image.

@@ -38,7 +38,7 @@ def read_classes():
     """
     Load the ImageNet class names.
     """
-    with open("data/rotation_prediction_test/imagenet_classes.txt", "r") as f:
+    with open("../data/rotation_prediction_test/imagenet_classes.txt", "r") as f:
         categories = [s.strip() for s in f.readlines()]
     return categories
 

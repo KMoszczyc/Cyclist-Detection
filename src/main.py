@@ -9,6 +9,7 @@ TRAIN_LABELS_CLEANED_DIR = 'data_raw/labels/training_cleaned/'
 
 if __name__ == '__main__':
     print('Lets gooo!')
+    merge_tracking_kitti_images('data/kitti_tracking_data/raw/data_tracking_image_2/training/image_02', 'data/kitti_tracking_data/merged_raw/')
 
     # cut_imgs('data/data_raw_kitti/images/training/', 'data/data_raw_kitti/labels/training_cleaned_v2/','data/data_raw_kitti/images/training_cut/',  'data/data_raw_kitti/labels/training_cut/', 640)
 
@@ -30,7 +31,7 @@ if __name__ == '__main__':
 
     # display_random_img('data/data_tsinghua_416/train/', 'data/data_tsinghua_416/train/')
     # display_random_img('data/data_raw_kitti/data_kitti_416/train/', 'data/data_raw_kitti/data_kitti_416/train/', is_yolo=True)
-    display_random_img('data/data_raw_kitti/images/training_raw/', 'data/data_raw_kitti/labels/training_raw/', is_yolo=False, is_raw_kitti=True)
+    # display_random_img('data/data_raw_kitti/images/training_raw/', 'data/data_raw_kitti/labels/training_raw/', is_yolo=False, is_raw_kitti=True)
 
     # labels = read_raw_kitti_labels('data/data_raw_kitti/labels/training_raw/000001.txt')
     # filtered_labels = [label for label in labels if label['type']=='Cyclist']

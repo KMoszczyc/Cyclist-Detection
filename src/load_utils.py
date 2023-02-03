@@ -21,7 +21,6 @@
 # EXAMPLE
 # Car 0.00 1 2.04 334.85 178.94 624.50 372.04 1.57 1.50 3.68 -1.17 1.65 7.86 1.90
 
-
 from collections import Counter
 from PIL import Image
 import os
@@ -31,6 +30,7 @@ import json
 import random
 import numpy as np
 import kitti_util
+from itertools import chain
 
 TRAIN_IMAGES_DIR = 'data_raw/images/training/'
 TRAIN_IMAGES_RESIZED_DIR = 'data_raw/images/training_resized_370/'
@@ -38,6 +38,7 @@ TRAIN_IMAGES_RESIZED_DIR = 'data_raw/images/training_resized_370/'
 TRAIN_LABELS_OLD_DIR = 'data_raw/labels/training_old/'
 TRAIN_LABELS_CLEANED_DIR = 'data_raw/labels/training_cleaned/'
 TRAIN_LABELS_YOLO_DIR = 'data_raw/labels/training_yolo/'
+parameter_names = ['type', 'truncated', 'occluded', 'angle', 'left', 'top', 'right', 'bottom', 'height', 'width', 'length', 'x', 'y', 'z', 'rotation_y']
 
 
 def id_to_str(id):
@@ -86,39 +87,40 @@ def display_raw_kitti_image(id, img_src_dir, label_src_dir):
     str_id = id_to_str(id)
     img_path = f'{img_src_dir}{str_id}.jpg'
     label_path = f'{label_src_dir}{str_id}.txt'
-    calibration_path = f'{"data/data_raw_kitti/calibration_data/training/calib/"}{str_id}.txt'
+    calibration_path = f'data/data_raw_kitti/calibration_data/training/calib/{str_id}.txt'
 
     calib = kitti_util.Calibration(calibration_path)
     img = cv2.imread(img_path)
     w = img.shape[1]
     h = img.shape[0]
-    camera_point = (int(w / 2), h)
-
+    camera_point = int(w / 2), h
     labels = read_raw_kitti_labels(label_path)
     filtered_labels = [label for label in labels if label['type'] == 'Cyclist']
 
     for label in filtered_labels:
         print(label)
         cv2.rectangle(img, (int(label['left']), int(label['top'])), (int(label['right']), int(label['bottom'])), (255, 0, 0), 2)
+
         x1 = (label['right'] + label['left']) / 2
         y1 = (label['top'] + label['bottom']) / 2
         draw_arrow(img, x1, y1, label['angle'], 30)
-
         corners_3d_cam2 = compute_3d_box_cam2(label['height'], label['width'], label['length'], label['x'], label['y'], label['z'], label['rotation_y'])
         pts_2d = calib.project_rect_to_image(corners_3d_cam2.T)
-        image = kitti_util.draw_projected_box3d(img, pts_2d, color=(255, 0, 255), thickness=1)
+        center_x = int(sum(pts_2d[:, 0]) / len(pts_2d))
+        center_y = int(sum(pts_2d[:, 1]) / len(pts_2d))
 
-        # # Lines bot
-        # cv2.line(img, camera_point, (int(x1), int(y1)), (0, 0, 255), 2)
-        # draw_perpendicular_line(img, camera_point, (int(x1), int(y1)), 100)
-        #
-        # # Lines mid
-        # cv2.line(img, (int(w / 2), int(h / 2)), (int(x1), int(y1)), (0, 0, 255), 2)
-        # draw_perpendicular_line(img, (int(w / 2), int(h / 2)), (int(x1), int(y1)), 100)
-        #
-        # # Lines top
-        # cv2.line(img, (int(w / 2), 0), (int(x1), int(y1)), (0, 0, 255), 2)
-        # draw_perpendicular_line(img, (int(w / 2), 0), (int(x1), int(y1)), 100)
+        back_bottom_x = (pts_2d[2][0] + pts_2d[3][0]) / 2
+        back_bottom_y = pts_2d[2][1]
+
+        front_bottom_x = (pts_2d[0][0] + pts_2d[1][0]) / 2
+        front_bottom_y = pts_2d[0][1]
+
+        angle = np.arctan2(front_bottom_y - back_bottom_y, front_bottom_x - back_bottom_x)
+        draw_arrow(img, center_x, center_y, angle, 40, (0, 0, 255))
+        print('Center x:', center_x, 'Center y:', center_y)
+        # cv2.arrowedLine(img, (int(back_bottom_x), int(back_bottom_y)), (int(front_bottom_x), int(front_bottom_y)), (0, 0, 255), 2, tipLength=0.4)
+
+        image = kitti_util.draw_projected_box3d(img, pts_2d, color=(255, 0, 255), thickness=1)
 
     cv2.imshow('img', img)
     cv2.waitKey(0)
@@ -265,7 +267,6 @@ def read_raw_kitti_labels(label_path):
     """
 
     def parse_kitti_label(str_label):
-        parameter_names = ['type', 'truncated', 'occluded', 'angle', 'left', 'top', 'right', 'bottom', 'height', 'width', 'length', 'x', 'y', 'z', 'rotation_y']
         parameters = str_label.split(' ')
         parsed_parameters = [parameters[0]] + [float(param) for param in parameters[1:]]
 
@@ -435,6 +436,27 @@ def split_dataset(src_path, dst_path):
             shutil.copyfile(f'{src_path}{label}', f'{dst_valid}{label}')
 
 
+def merge_tracking_kitti_images(src_path, dst_path):
+    # Define paths
+    root_path = os.getcwd()
+    src_path = f'{root_path}/{src_path}'
+    dst_path = f'{root_path}/{dst_path}'
+
+    # Create destination directories
+    create_dir(dst_path)
+
+    for root, subdirs, files in os.walk(src_path):
+        dir_name = os.path.basename(root)
+        for f in files:
+            new_filename = f"{dir_name}_{f}"
+            img_src_path = os.path.join(root, f)
+            img_dst_path = os.path.join(dst_path, new_filename)
+
+            reduce_image_size(img_src_path, dst_path, new_filename)
+
+    # img_filenames = [f for f in [files for root, subdirs, files in os.walk(img_src_path)] if f.endswith('.jpg')]
+
+
 def count_img_sizes(directory):
     """
     Count widths, heights of images from dir - some images have different sizes in kitti dataset f.e
@@ -561,7 +583,7 @@ def write_coords_bboxes(label_dst, coords_bboxes):
             output.write(f"{0} {bb['left']} {bb['top']} {bb['right']} {bb['bottom']}\n")
 
 
-def draw_arrow(frame, x1, y1, angle, length):
+def draw_arrow(frame, x1, y1, angle, length, color=(0, 255, 0)):
     """
     Draw an arrow over OpenCV image
     :param frame: Opencv img
@@ -577,7 +599,7 @@ def draw_arrow(frame, x1, y1, angle, length):
     x2, y2 = angle_to_vector((x1, y1), angle, length)
     print(x1, y1, x2, y2)
 
-    cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2, tipLength=0.4)
+    cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2, tipLength=0.4)
 
 
 def angle_to_vector(start_point, angle, length):
@@ -619,14 +641,26 @@ def draw_perpendicular_line(img, start_point, end_point, length):
 
     cv2.line(img, perpendicular_start_point, perpendicular_end_point, (0, 0, 255), 1)
 
+
 def compute_3d_box_cam2(h, w, l, x, y, z, yaw):
     """
     Return : 3xn in cam2 coordinate
     """
     R = np.array([[np.cos(yaw), 0, np.sin(yaw)], [0, 1, 0], [-np.sin(yaw), 0, np.cos(yaw)]])
-    x_corners = [l/2,l/2,-l/2,-l/2,l/2,l/2,-l/2,-l/2]
-    y_corners = [0,0,0,0,-h,-h,-h,-h]
-    z_corners = [w/2,-w/2,-w/2,w/2,w/2,-w/2,-w/2,w/2]
-    corners_3d_cam2 = np.dot(R, np.vstack([x_corners,y_corners,z_corners]))
+    x_corners = [l / 2, l / 2, -l / 2, -l / 2, l / 2, l / 2, -l / 2, -l / 2]
+    y_corners = [0, 0, 0, 0, -h, -h, -h, -h]
+    z_corners = [w / 2, -w / 2, -w / 2, w / 2, w / 2, -w / 2, -w / 2, w / 2]
+    corners_3d_cam2 = np.dot(R, np.vstack([x_corners, y_corners, z_corners]))
     corners_3d_cam2 += np.vstack([x, y, z])
     return corners_3d_cam2
+
+
+def reduce_image_size(src_path, dst_dir, new_filename):
+    """Reduce disk space that image takes without resizing the image or losing quality."""
+    # img = Image.open(src_path)
+    # img.save(dst_path, optimize=True, quality=95)
+
+    img = cv2.imread(src_path)
+
+    jpg_filename = new_filename.split(".")[0] + '.jpg'
+    cv2.imwrite(f'{dst_dir}{jpg_filename}', img, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
