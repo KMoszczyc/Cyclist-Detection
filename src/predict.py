@@ -1,12 +1,16 @@
 # How close their appearance is. Here we’ll compare the vectors produced by the re-id network for both images.
 # How close their centers are on the consecutive frames. Given a decent framerate of the video, we can assume that the person cannot suddenly move from one corner of the image to another – which means that the centers of the detections of the same person on consecutive frames must be close to each other.
 # The sizes of the boxes. Again, the sizes should be consistent for consecutive frames.
+import time
 
 import cv2
 # import torch
 from PIL import Image
-from sort_tracking import *
+from src.sort_tracking import *
 import numpy as np
+from src.load_utils import get_kitti_tracking_img_filepaths, get_kitti_tracking_labels, get_frame_labels, draw_arrow_from_angle, vector_to_angle
+from src.metrics import Metrics
+
 
 # from deep_sort import nn_matching
 # from deep_sort.detection import Detection
@@ -98,8 +102,8 @@ def predict_img():
 #     cv2.destroyAllWindows()
 
 
-def predict_video_yolov4(input_video_path, output_video_path, weights_path):
-    net = cv2.dnn.readNetFromDarknet('yolov4-configs/yolov4-obj.cfg', weights_path)
+def predict_video_yolov4(input_video_path, output_video_path, weights_path, config_path):
+    net = cv2.dnn.readNetFromDarknet(config_path, weights_path)
     net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
     net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
@@ -121,7 +125,7 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path):
     last_tracked_bbs = []
     counter = 0
     yolo_times = []
-    deepsort_times = []
+    tracking_times = []
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -157,25 +161,25 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path):
                 center_ys = [get_center_y(bb) for bb in tracker.observed_history[-bb_id:]]
 
                 direction = 1 if center_xs[-1] - center_xs[0] > 0 else -1
-                dist = np.sqrt((center_xs[-1]-center_xs[0])**2 + (center_ys[-1]-center_ys[-1])**2)
+                dist = np.sqrt((center_xs[-1] - center_xs[0]) ** 2 + (center_ys[-1] - center_ys[-1]) ** 2)
                 m, b = np.polyfit(center_xs, center_ys, 1)
 
-                draw_arrow(frame, center_xs[-1], center_ys[-1], m, dist, direction)
+                draw_arrow_from_m(frame, center_xs[-1], center_ys[-1], m, dist, direction)
 
         counter += 1
         yolo_time = yolo_end_time - start_time
         deepsort_time = sort_end_time - yolo_end_time
         yolo_times.append(yolo_time)
-        deepsort_times.append(deepsort_time)
+        tracking_times.append(deepsort_time)
 
         if counter > 100:
             total_time_elapsed = time.time() - start_time
             yolo_time_avg = f'{round((sum(yolo_times) / len(yolo_times)) * 1000, 3)}ms'
-            sort_time_avg = f'{round((sum(deepsort_times) / len(deepsort_times)) * 1000, 6)}ms'
+            sort_time_avg = f'{round((sum(tracking_times) / len(tracking_times)) * 1000, 6)}ms'
             fps = 1.0 / total_time_elapsed
             counter = 0
             yolo_times = []
-            deepsort_times = []
+            tracking_times = []
             print('YOLO:', yolo_time_avg, 'Sort', sort_time_avg, 'Total time:', round(total_time_elapsed * 1000, 3), "FPS: ", fps)
 
         # Save to mp4
@@ -188,6 +192,107 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path):
     cap.release()
     out.release()
     cv2.destroyAllWindows()
+
+
+def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_num, output_video_path, weights_path, config_path):
+    net = cv2.dnn.readNetFromDarknet(config_path, weights_path)
+    net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+    net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+
+    model = cv2.dnn_DetectionModel(net)
+    model.setInputParams(scale=1 / 255, size=(416, 416), swapRB=True)
+
+    img_filepaths = get_kitti_tracking_img_filepaths(src_frames_dir, recording_num)
+
+    img1 = cv2.imread(img_filepaths[0])
+    width = int(img1.shape[1])  # float `width`
+    height = int(img1.shape[0])
+    fps = 30
+
+    print(width, height, fps)
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+
+    mot_tracker = Sort(max_age=5,
+                       min_hits=3,
+                       iou_threshold=0.3)
+    metrics = Metrics()
+    labels = get_kitti_tracking_labels(src_labels_dir, recording_num)
+
+    for f in img_filepaths:
+        # time.sleep(0.05)
+        frame = cv2.imread(f)
+
+        # Cyclist detection with Yolo
+        start_time = time.time()
+        classIds, scores, boxes = model.detect(frame, confThreshold=0.5, nmsThreshold=0.4)
+        yolo_end_time = time.time()
+
+        # Cyclist tracking with Sort
+        bbs = convert_yolov4_bb(classIds, scores, boxes)
+        detections = bbs if len(bbs) > 0 else np.empty((0, 5))
+        tracked_bbs = mot_tracker.update(detections)
+        tracking_end_time = time.time()
+
+        # Display raw BBs
+        for row in bbs:
+            cv2.rectangle(frame, (int(row[0]), int(row[1])), (int(row[2]), int(row[3])), (0, 255, 0), 1)  # Green
+
+        # Display tracked BBs
+        for row in tracked_bbs:
+            cv2.rectangle(frame, (int(row[0]), int(row[1])), (int(row[2]), int(row[3])), (255, 0, 0), 2)  # Blue
+            draw_text(frame, f"Cyclist: {int(row[4])}", (int(row[0]), int(row[1])))
+
+        # Draw validation arrows
+        frame_labels = get_frame_labels(labels, metrics.counter)
+        for label in frame_labels:
+            x1 = (label['right'] + label['left']) / 2
+            y1 = (label['top'] + label['bottom']) / 2
+            print('Real angle:', label['bb_angle'])
+            draw_arrow_from_angle(frame, x1, y1, label['bb_angle'], 30, (0, 0, 255))  # Red
+
+        # Predict Cyclist Trajectory
+        predictions, frame = predict_trajectory(mot_tracker, frame)
+        trajectory_prediction_end_time = time.time()
+        print(predictions)
+
+        metrics.update(predictions, 0, start_time, yolo_end_time, tracking_end_time, trajectory_prediction_end_time)
+
+        # Save to mp4
+        out.write(frame)
+        cv2.imshow('frame', frame)
+        c = cv2.waitKey(0)
+        # if c & 0xFF == ord('q'):
+        #     break
+
+    # out.release()
+    cv2.destroyAllWindows()
+
+
+def predict_trajectory(mot_tracker, frame):
+    predictions = []
+    for tracker in mot_tracker.trackers:
+        history_len = len(tracker.observed_history)
+
+        if mot_tracker.is_tracker_visible(tracker):
+            bb_id = min(history_len, 5)
+            center_xs = [get_center_x(bb) for bb in tracker.observed_history[-bb_id:]]
+            center_ys = [get_center_y(bb) for bb in tracker.observed_history[-bb_id:]]
+            if center_xs:
+                direction = 1 if center_xs[-1] - center_xs[0] > 0 else -1
+                dist = np.sqrt((center_xs[-1] - center_xs[0]) ** 2 + (center_ys[-1] - center_ys[-1]) ** 2)
+                m, b = np.polyfit(center_xs, center_ys, 1)
+
+                prediction = {
+                    'center_x': center_xs[-1],
+                    'center_y': center_ys[-1],
+                    'angle': np.arctan(m)
+                }
+                predictions.append(prediction)
+
+                draw_arrow_from_m(frame, center_xs[-1], center_ys[-1], m, dist, direction)
+    return predictions, frame
+
 
 # TODO: Add deepsort to project
 # def predict_video_yolov4_deepsort(input_video_path, output_video_path):
@@ -298,18 +403,23 @@ def convert_yolov5_bb(df_bb, width, height):
 def get_center_pt(bb):
     return ((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2)
 
+
 def get_center_x(bb):
     return (bb[0] + bb[2]) / 2
+
 
 def get_center_y(bb):
     return (bb[1] + bb[3]) / 2
 
-def draw_arrow(frame, x1, y1, m, dist, direction):
+
+def draw_arrow_from_m(frame, x1, y1, m, dist, direction, color=(0, 255, 0)):
     dist_scaled = dist / 1
     dx = dist_scaled / np.sqrt(1 + (m * m))
     dy = m * dx
 
-    x2 = x1 + dx*direction
+    x2 = x1 + dx * direction
     y2 = y1 + dy
 
-    cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2, tipLength=0.4)
+    cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2, tipLength=0.4)
+    # print('Predicted angle:', vector_to_angle(x1, x1, y1, y2), 'm:', m)
+    print('Predicted angle:', np.arctan(m), 'm:', m)

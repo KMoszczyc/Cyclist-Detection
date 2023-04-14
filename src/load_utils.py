@@ -1,4 +1,4 @@
-# LABELS format
+# LABELS format in KITTI Object Detection Dataset
 # Values    Name      Description
 # ----------------------------------------------------------------------------
 #    1    type         Describes the type of object: 'Car', 'Van', 'Truck',
@@ -21,6 +21,36 @@
 # EXAMPLE
 # Car 0.00 1 2.04 334.85 178.94 624.50 372.04 1.57 1.50 3.68 -1.17 1.65 7.86 1.90
 
+
+# ----------------------------------------------------------------------------
+# LABELS format in KITTI Object Tracking Dataset
+# Values    Name      Description
+# ----------------------------------------------------------------------------
+# 1    frame        Frame within the sequence where the object appearers
+# 1    track id     Unique tracking id of this object within this sequence
+# 1    type         Describes the type of object: 'Car', 'Van', 'Truck',
+#                   'Pedestrian', 'Person_sitting', 'Cyclist', 'Tram',
+#                   'Misc' or 'DontCare'
+# 1    truncated    Float from 0 (non-truncated) to 1 (truncated), where
+#                   truncated refers to the object leaving image boundaries.
+# 	     Truncation 2 indicates an ignored object (in particular
+# 	     in the beginning or end of a track) introduced by manual
+# 	     labeling.
+# 1    occluded     Integer (0,1,2,3) indicating occlusion state:
+#                   0 = fully visible, 1 = partly occluded
+#                   2 = largely occluded, 3 = unknown
+# 1    alpha        Observation angle of object, ranging [-pi..pi]
+# 4    bbox         2D bounding box of object in the image (0-based index):
+#                   contains left, top, right, bottom pixel coordinates
+# 3    dimensions   3D object dimensions: height, width, length (in meters)
+# 3    location     3D object location x,y,z in camera coordinates (in meters)
+# 1    rotation_y   Rotation ry around Y-axis in camera coordinates [-pi..pi]
+# 1    score        Only for results: Float, indicating confidence in
+#                   detection, needed for p/r curves, higher is better.
+
+# example: 0 1 Cyclist 0 0 -1.936993 737.619499 161.531951 931.112229 374.000000 1.739063 0.824591 1.785241 1.640400 1.675660 5.776261 -1.675458
+
+
 from collections import Counter
 from PIL import Image
 import os
@@ -29,8 +59,10 @@ import shutil
 import json
 import random
 import numpy as np
-import kitti_util
+import src.kitti_util
 from itertools import chain
+
+from src import kitti_util
 
 TRAIN_IMAGES_DIR = 'data_raw/images/training/'
 TRAIN_IMAGES_RESIZED_DIR = 'data_raw/images/training_resized_370/'
@@ -39,6 +71,8 @@ TRAIN_LABELS_OLD_DIR = 'data_raw/labels/training_old/'
 TRAIN_LABELS_CLEANED_DIR = 'data_raw/labels/training_cleaned/'
 TRAIN_LABELS_YOLO_DIR = 'data_raw/labels/training_yolo/'
 parameter_names = ['type', 'truncated', 'occluded', 'angle', 'left', 'top', 'right', 'bottom', 'height', 'width', 'length', 'x', 'y', 'z', 'rotation_y']
+tracking_parameter_names = ['frame', 'track_id', 'type', 'truncated', 'occluded', 'angle', 'left', 'top', 'right', 'bottom', 'height', 'width', 'length', 'x',
+                            'y', 'z', 'rotation_y']
 
 
 def id_to_str(id):
@@ -103,7 +137,7 @@ def display_raw_kitti_image(id, img_src_dir, label_src_dir):
 
         x1 = (label['right'] + label['left']) / 2
         y1 = (label['top'] + label['bottom']) / 2
-        draw_arrow(img, x1, y1, label['angle'], 30)
+        draw_arrow_from_angle(img, x1, y1, label['angle'], 30, (0, 255, 0)) #default angle by kitti - green
         corners_3d_cam2 = compute_3d_box_cam2(label['height'], label['width'], label['length'], label['x'], label['y'], label['z'], label['rotation_y'])
         pts_2d = calib.project_rect_to_image(corners_3d_cam2.T)
         center_x = int(sum(pts_2d[:, 0]) / len(pts_2d))
@@ -116,7 +150,7 @@ def display_raw_kitti_image(id, img_src_dir, label_src_dir):
         front_bottom_y = pts_2d[0][1]
 
         angle = np.arctan2(front_bottom_y - back_bottom_y, front_bottom_x - back_bottom_x)
-        draw_arrow(img, center_x, center_y, angle, 40, (0, 0, 255))
+        draw_arrow_from_angle(img, center_x, center_y, angle, 40, (0, 0, 255)) #calculated angle - red
         print('Center x:', center_x, 'Center y:', center_y)
         # cv2.arrowedLine(img, (int(back_bottom_x), int(back_bottom_y)), (int(front_bottom_x), int(front_bottom_y)), (0, 0, 255), 2, tipLength=0.4)
 
@@ -263,7 +297,7 @@ def parse_coords_bounding_box(str_label):
 
 def read_raw_kitti_labels(label_path):
     """
-    Read bounding boxes from the label text file
+    Read bounding boxes from the label text file. (Object Detection and Tracking datasets have slightly different label formatting.)
     """
 
     def parse_kitti_label(str_label):
@@ -274,7 +308,25 @@ def read_raw_kitti_labels(label_path):
 
     with open(label_path, 'r') as f:
         labels = f.read().splitlines()
+
         parsed_labels = [parse_kitti_label(line) for line in labels]
+        return parsed_labels
+
+
+def read_raw_kitti_tracking_labels(label_path):
+    """
+    Read bounding boxes from the label text file. (Object Detection and Tracking datasets have slightly different label formatting.)
+    """
+
+    def parse_tracking_kitti_label(str_label):
+        parameters = str_label.split(' ')
+        parsed_parameters = parameters[0:3] + [float(param) for param in parameters[3:]]
+
+        return {tracking_parameter_names[i]: parsed_parameters[i] for i in range(len(tracking_parameter_names))}
+
+    with open(label_path, 'r') as f:
+        labels = f.read().splitlines()
+        parsed_labels = [parse_tracking_kitti_label(line) for line in labels]
         return parsed_labels
 
 
@@ -583,7 +635,7 @@ def write_coords_bboxes(label_dst, coords_bboxes):
             output.write(f"{0} {bb['left']} {bb['top']} {bb['right']} {bb['bottom']}\n")
 
 
-def draw_arrow(frame, x1, y1, angle, length, color=(0, 255, 0)):
+def draw_arrow_from_angle(frame, x1, y1, angle, length, color=(0, 255, 0)):
     """
     Draw an arrow over OpenCV image
     :param frame: Opencv img
@@ -597,7 +649,7 @@ def draw_arrow(frame, x1, y1, angle, length, color=(0, 255, 0)):
     # y2 = y1 + np.sin(angle) * dist
 
     x2, y2 = angle_to_vector((x1, y1), angle, length)
-    print(x1, y1, x2, y2)
+    # print(x1, y1, x2, y2)
 
     cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2, tipLength=0.4)
 
@@ -611,6 +663,9 @@ def angle_to_vector(start_point, angle, length):
 
     return int(x2), int(y2)
 
+def vector_to_angle(x1,x2, y1, y2):
+    angle = np.arctan2(y2 - y1, x2 - x1)
+    return angle
 
 def two_points_to_angle(point_a, point_c):
     """Calculate angle next to point_a (camera point) where point_c is the cyclist center and point_b has the same y as point_a and same x as point_c.
@@ -664,3 +719,119 @@ def reduce_image_size(src_path, dst_dir, new_filename):
 
     jpg_filename = new_filename.split(".")[0] + '.jpg'
     cv2.imwrite(f'{dst_dir}{jpg_filename}', img, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+
+
+from skimage.registration import phase_cross_correlation
+
+
+def calculate_frame_shift(frame1, frame2):
+    shift, error, diffphase = phase_cross_correlation(frame1, frame2, upsample_factor=10)
+    print('shift', shift, 'error', error, 'diffphase', diffphase)
+
+
+def display_tracking_img(img_src_dir, label_src_dir, recording_num):
+    img_filepaths = get_kitti_tracking_img_filepaths(img_src_dir, recording_num)
+    labels = get_kitti_tracking_labels(label_src_dir, recording_num)
+
+    for i in range(len(img_filepaths) - 1):
+        frame1 = cv2.imread(img_filepaths[i])
+        # frame2 = cv2.imread(os.path.join(img_src_dir, img_filenames[i + 1]))
+        frame_labels = get_frame_labels(labels, i)
+        print(frame_labels)
+        for frame_label in frame_labels:
+            display_bb(frame_label, frame1)
+        # calculate_frame_shift(frame1, frame2)
+
+        cv2.imshow('img', frame1)
+        cv2.waitKey(0)
+
+def display_bb(label, img):
+    cv2.rectangle(img, (int(label['left']), int(label['top'])), (int(label['right']), int(label['bottom'])), (255, 0, 0), 2)
+
+    x1 = (label['right'] + label['left']) / 2
+    y1 = (label['top'] + label['bottom']) / 2
+    draw_arrow_from_angle(img, x1, y1, label['angle'], 30, (0, 255, 0))  # default angle by kitti - green
+    draw_arrow_from_angle(img, x1, y1, label['rotation_y'], 30, (255, 255, 0))  # rotation_y - bllue
+    draw_arrow_from_angle(img, x1, y1, label['bb_angle'], 30, (0, 0, 255))  # Calculated angle from 3D Bounding Box - green
+
+
+def get_kitti_tracking_img_filepaths(img_src_dir, recording_num):
+    filenames = os.listdir(img_src_dir)
+    img_filenames = [os.path.join(img_src_dir, f) for f in filenames if ('.jpg' in f or '.png' in f) and f.split('_')[0] == recording_num]
+
+    return img_filenames
+
+def get_frame_labels(labels, frame_num):
+    return [label for label in labels if label['frame'] == str(frame_num)]
+
+def get_kitti_tracking_labels(labels_src_dir, recording_num):
+    label_filenames = os.listdir(labels_src_dir)
+    recording_label_filename = [f for f in label_filenames if f.split('.txt')[0] == recording_num][0]
+    labels = read_raw_kitti_tracking_labels(os.path.join(labels_src_dir, recording_label_filename))
+    filtered_labels = [label for label in labels if label['type'] == 'Cyclist']
+
+    for label in filtered_labels:
+        label['bb_angle'] = calculate_angle_from_bb(label, recording_num)
+
+    return filtered_labels
+
+def transform_tracking_calib_files(src_calib_dir, dst_calib_dir):
+    calib_filenames = os.listdir(src_calib_dir)
+    for filename in calib_filenames:
+        f = open(os.path.join(src_calib_dir, filename), "r")
+        lines = f.readlines()
+        f.close()
+
+        lines[4] = lines[4].replace('R_rect', 'R0_rect:')
+        lines[5] = lines[5].replace('Tr_velo_cam', 'Tr_velo_to_cam:')
+        lines[6] = lines[6].replace('Tr_imu_velo', 'Tr_imu_to_velo:')
+
+        with open(os.path.join(dst_calib_dir, filename), 'w') as output_file:
+            print(''.join(lines))
+            output_file.write(''.join(lines))
+def calculate_angle_from_bb(label, recording_num):
+    calibration_path = f'data/kitti_tracking_data/raw/calib_formatted/{recording_num}.txt'
+    # calibration_path = f'data/kitti_tracking_data/raw/data_tracking_calib/training/calib/{recording_num}.txt'
+    # calibration_path = f'data/data_raw_kitti/calibration_data/training/calib/{str_id}.txt'
+    calib = kitti_util.Calibration(calibration_path)
+
+    x1 = (label['right'] + label['left']) / 2
+    y1 = (label['top'] + label['bottom']) / 2
+    corners_3d_cam2 = compute_3d_box_cam2(label['height'], label['width'], label['length'], label['x'], label['y'], label['z'], label['rotation_y'])
+    pts_2d = calib.project_rect_to_image(corners_3d_cam2.T)
+    center_x = int(sum(pts_2d[:, 0]) / len(pts_2d))
+    center_y = int(sum(pts_2d[:, 1]) / len(pts_2d))
+
+    back_bottom_x = (pts_2d[2][0] + pts_2d[3][0]) / 2
+    back_bottom_y = pts_2d[2][1]
+
+    front_bottom_x = (pts_2d[0][0] + pts_2d[1][0]) / 2
+    front_bottom_y = pts_2d[0][1]
+
+    angle = np.arctan2(front_bottom_y - back_bottom_y, front_bottom_x - back_bottom_x)
+    return angle
+
+def count_cyclists_per_recording(labels_src_dir):
+    label_filenames = os.listdir(labels_src_dir)
+
+
+    imgs_with_cyclists= []
+    cyclist_detections = []
+
+    for f in label_filenames:
+        labels = read_raw_kitti_tracking_labels(os.path.join(labels_src_dir, f))
+        filtered_labels = [label for label in labels if label['type'] == 'Cyclist']
+        frames = set([label['frame'] for label in filtered_labels])
+
+        cyclist_detections.append(len(filtered_labels))
+        imgs_with_cyclists.append(len(frames))
+
+    print('Stats per recoding (21 recordings, from 0000 to 0020)')
+    print('Cyclist Detections num:', cyclist_detections)
+    print('Images num with Cyclists:', imgs_with_cyclists)
+
+    print('Cyclist Detections sum:', sum(cyclist_detections))
+    print('Images with Cyclists sum:', sum(imgs_with_cyclists))
+
+
+# def calculate_angle_from_3d_bb:
