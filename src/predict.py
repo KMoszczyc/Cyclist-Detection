@@ -8,7 +8,7 @@ import cv2
 from PIL import Image
 from src.sort_tracking import *
 import numpy as np
-from src.load_utils import get_kitti_tracking_img_filepaths, get_kitti_tracking_labels, get_frame_labels, draw_arrow_from_angle, vector_to_angle
+from src.load_utils import get_kitti_tracking_img_filepaths, get_kitti_tracking_labels, get_frame_labels, draw_arrow_from_angle, vector_to_angle, draw_example_arrows
 from src.metrics import Metrics
 
 
@@ -244,26 +244,33 @@ def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_n
             draw_text(frame, f"Cyclist: {int(row[4])}", (int(row[0]), int(row[1])))
 
         # Draw validation arrows
-        frame_labels = get_frame_labels(labels, metrics.counter)
+        frame_labels = get_frame_labels(labels, metrics.frame_counter)
+        if frame_labels:
+            print('Frame id:', metrics.frame_counter, '\tLabel id:', frame_labels[0]['frame'])
+
         for label in frame_labels:
+            print(label['bb_angle'])
             x1 = (label['right'] + label['left']) / 2
             y1 = (label['top'] + label['bottom']) / 2
-            print('Real angle:', label['bb_angle'])
+            # print('Real angle:', label['bb_angle'])
             draw_arrow_from_angle(frame, x1, y1, label['bb_angle'], 30, (0, 0, 255))  # Red
+
+        # to show how radians are translated to arrows
+        draw_example_arrows(frame)
 
         # Predict Cyclist Trajectory
         predictions, frame = predict_trajectory(mot_tracker, frame)
         trajectory_prediction_end_time = time.time()
-        print(predictions)
 
         metrics.update(predictions, 0, start_time, yolo_end_time, tracking_end_time, trajectory_prediction_end_time)
 
         # Save to mp4
         out.write(frame)
         cv2.imshow('frame', frame)
+        # c = cv2.waitKey(1)
         c = cv2.waitKey(0)
-        # if c & 0xFF == ord('q'):
-        #     break
+        if c & 0xFF == ord('q'):
+            break
 
     # out.release()
     cv2.destroyAllWindows()
@@ -273,24 +280,25 @@ def predict_trajectory(mot_tracker, frame):
     predictions = []
     for tracker in mot_tracker.trackers:
         history_len = len(tracker.observed_history)
+        # if mot_tracker.is_tracker_visible(tracker):
+        bb_id = min(history_len, 5)
+        center_xs = [get_center_x(bb) for bb in tracker.observed_history[-bb_id:]]
+        center_ys = [get_center_y(bb) for bb in tracker.observed_history[-bb_id:]]
+        if center_xs:
+            direction = 1 if center_xs[-1] - center_xs[0] > 0 else -1
+            dist = np.sqrt((center_xs[-1] - center_xs[0]) ** 2 + (center_ys[-1] - center_ys[-1]) ** 2)
+            m, b = np.polyfit(center_xs, center_ys, 1)
 
-        if mot_tracker.is_tracker_visible(tracker):
-            bb_id = min(history_len, 5)
-            center_xs = [get_center_x(bb) for bb in tracker.observed_history[-bb_id:]]
-            center_ys = [get_center_y(bb) for bb in tracker.observed_history[-bb_id:]]
-            if center_xs:
-                direction = 1 if center_xs[-1] - center_xs[0] > 0 else -1
-                dist = np.sqrt((center_xs[-1] - center_xs[0]) ** 2 + (center_ys[-1] - center_ys[-1]) ** 2)
-                m, b = np.polyfit(center_xs, center_ys, 1)
+            print('m', m, '\tarctan:', np.arctan(m))
 
-                prediction = {
-                    'center_x': center_xs[-1],
-                    'center_y': center_ys[-1],
-                    'angle': np.arctan(m)
-                }
-                predictions.append(prediction)
+            prediction = {
+                'center_x': center_xs[-1],
+                'center_y': center_ys[-1],
+                'angle': np.arctan(m)
+            }
+            predictions.append(prediction)
 
-                draw_arrow_from_m(frame, center_xs[-1], center_ys[-1], m, dist, direction)
+            draw_arrow_from_m(frame, center_xs[-1], center_ys[-1], m, dist*10, direction,  color=(0, 255, 0)) #Green
     return predictions, frame
 
 
@@ -422,4 +430,3 @@ def draw_arrow_from_m(frame, x1, y1, m, dist, direction, color=(0, 255, 0)):
 
     cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2, tipLength=0.4)
     # print('Predicted angle:', vector_to_angle(x1, x1, y1, y2), 'm:', m)
-    print('Predicted angle:', np.arctan(m), 'm:', m)

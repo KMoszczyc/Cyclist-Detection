@@ -7,7 +7,8 @@ class Metrics:
     def __init__(self):
         self.real_direction_angles = []
         self.predictions = []
-        self.counter = 0
+        self.frame_counter = 0
+        self.metric_counter = 0
         self.yolo_times = []
         self.tracking_times = []
         self.trajectory_prediction_times = []
@@ -32,7 +33,7 @@ class Metrics:
         self.tracking_times.append(tracking_time)
         self.trajectory_prediction_times.append(trajectory_prediction_time)
 
-        if self.counter > 100:
+        if self.metric_counter > 100:
             yolo_time_avg = sum(self.yolo_times) / len(self.yolo_times)
             tracking_time_avg = sum(self.tracking_times) / len(self.tracking_times)
             trajectory_prediction_time_avg = sum(self.trajectory_prediction_times) / len(self.trajectory_prediction_times)
@@ -40,7 +41,7 @@ class Metrics:
             total_time_elapsed = yolo_time_avg + tracking_time_avg + trajectory_prediction_time_avg
             fps = 1.0 / total_time_elapsed
 
-            self.counter = 0
+            self.metric_counter = 0
             self.yolo_times = []
             self.tracking_times = []
 
@@ -48,7 +49,8 @@ class Metrics:
                   self.pretty_time(trajectory_prediction_time_avg), '\tTotal time:',
                   self.pretty_time(total_time_elapsed), "\tFPS: ", round(fps, 2))
 
-        self.counter += 1
+        self.metric_counter += 1
+        self.frame_counter += 1
 
     def summarize(self):
         errors = [np.abs(real - prediction) for real, prediction in zip(self.real_direction_angles, self.predicted_direction_angles)]

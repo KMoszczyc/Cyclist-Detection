@@ -654,12 +654,32 @@ def draw_arrow_from_angle(frame, x1, y1, angle, length, color=(0, 255, 0)):
     cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2, tipLength=0.4)
 
 
+def draw_example_arrows(frame):
+    x1 = 50
+    y1 = 50
+    length = 15
+
+    draw_arrow_from_angle(frame, x1, y1, 0, 15, color=(0, 255, 0))
+    draw_arrow_from_angle(frame, x1, y1, np.pi/2, 15, color=(0, 255, 0))
+    draw_arrow_from_angle(frame, x1, y1, np.pi, 15, color=(0, 255, 0))
+    draw_arrow_from_angle(frame, x1, y1, -np.pi/2, 15, color=(0, 255, 0))
+
+    cv2.putText(frame,'0', (x1 + length + 10, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3) #right
+    cv2.putText(frame,'PI/2', (x1 - 15, y1+length+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3) #bottom / towards camera
+    cv2.putText(frame,'PI', (x1 - length - 20, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3) #right
+    cv2.putText(frame,'-PI/2', (x1 - 20, y1- length - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3) #top / forward/ away from camera
+
+
+    return frame
+
+
+
 def angle_to_vector(start_point, angle, length):
     """Calculate a 2D vector from start point, angle and length"""
     x2 = start_point[0] + np.cos(angle) * length
     y2 = start_point[1] + np.sin(angle) * length
 
-    print(angle, np.cos(angle) * length, np.sin(angle) * length)
+    # print(angle, np.cos(angle) * length, np.sin(angle) * length)
 
     return int(x2), int(y2)
 

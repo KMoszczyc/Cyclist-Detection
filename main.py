@@ -1,8 +1,15 @@
+def warn(*args, **kwargs):
+    pass
+import warnings
+warnings.warn = warn
+
 from src.load_utils import *
 from src.predict import predict_img, predict_video_yolov4, predict_video_from_frames_yolov4
+from  src.camera_motion_estimation import estimate_motion_mp4, estimate_motion_from_frames, estimate_motion_from_frames_sparse
 import os
 import cv2
 import random
+
 
 TRAIN_IMAGES_DIR = 'data_raw/images/training/'
 TRAIN_LABELS_CLEANED_DIR = 'data_raw/labels/training_cleaned/'
@@ -34,10 +41,11 @@ if __name__ == '__main__':
     # display_random_img('data/data_raw_kitti/images/training_raw/', 'data/data_raw_kitti/labels/training_raw/', is_yolo=False, is_raw_kitti=True)
     #
 
-    # count_cyclists_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
+    count_cyclists_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
     # transform_tracking_calib_files('data/kitti_tracking_data/raw/data_tracking_calib/training/calib','data/kitti_tracking_data/raw/calib_formatted')
 
     # display_tracking_img('data/kitti_tracking_data/merged_raw', 'data/kitti_tracking_data/raw/data_tracking_label_2/training', '0019')
+
 
 
     # labels = read_raw_kitti_labels('data/data_raw_kitti/labels/training_raw/000001.txt')
@@ -57,7 +65,7 @@ if __name__ == '__main__':
     src_frames_dir = 'data/kitti_tracking_data/merged_raw'
     src_labels_dir = 'data/kitti_tracking_data/raw/data_tracking_label_2/training'
 
-    recording_num = '0019'
+    recording_num = '0015'
     output_video_path = f'results/results_videos/yolov4_sort_kitti{recording_num}.mp4'
     predict_video_from_frames_yolov4(src_frames_dir,src_labels_dir,recording_num, output_video_path, weights_path, config_path)
 
@@ -65,3 +73,7 @@ if __name__ == '__main__':
     # predict_video_yolov4_deepsort(input_video_path, output_video_path)
 
     # predict_img()
+
+    dst_path = 'results/results_videos/camera_motion_estimation.mp4'
+    # estimate_motion_from_frames(src_frames_dir, dst_path, '0015')
+    # estimate_motion_from_frames_sparse(src_frames_dir, dst_path, '0019')
