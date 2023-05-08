@@ -10,6 +10,7 @@ from src.sort_tracking import *
 import numpy as np
 from src.load_utils import get_kitti_tracking_img_filepaths, get_kitti_tracking_labels, get_frame_labels, draw_arrow_from_angle, vector_to_angle, draw_example_arrows
 from src.metrics import Metrics
+from src.camera_motion_estimator import CameraMotionEstimator
 
 
 # from deep_sort import nn_matching
@@ -193,7 +194,7 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path, conf
     out.release()
     cv2.destroyAllWindows()
 
-
+# --------------------------------------------------------------------
 def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_num, output_video_path, weights_path, config_path):
     net = cv2.dnn.readNetFromDarknet(config_path, weights_path)
     net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
@@ -217,6 +218,7 @@ def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_n
                        min_hits=3,
                        iou_threshold=0.3)
     metrics = Metrics()
+    camera_motion_estimator = CameraMotionEstimator(img_filepaths)
     labels = get_kitti_tracking_labels(src_labels_dir, recording_num)
 
     for f in img_filepaths:
@@ -235,28 +237,29 @@ def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_n
         tracking_end_time = time.time()
 
         # Display raw BBs
-        for row in bbs:
-            cv2.rectangle(frame, (int(row[0]), int(row[1])), (int(row[2]), int(row[3])), (0, 255, 0), 1)  # Green
+        for bb in bbs:
+            cv2.rectangle(frame, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])), (0, 255, 0), 1)  # Green
 
         # Display tracked BBs
-        for row in tracked_bbs:
-            cv2.rectangle(frame, (int(row[0]), int(row[1])), (int(row[2]), int(row[3])), (255, 0, 0), 2)  # Blue
-            draw_text(frame, f"Cyclist: {int(row[4])}", (int(row[0]), int(row[1])))
+        for bb in tracked_bbs:
+            cv2.rectangle(frame, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])), (255, 0, 0), 2)  # Blue
+            draw_text(frame, f"Cyclist: {int(bb[4])}", (int(bb[0]), int(bb[1])))
 
         # Draw validation arrows
         frame_labels = get_frame_labels(labels, metrics.frame_counter)
         if frame_labels:
             print('Frame id:', metrics.frame_counter, '\tLabel id:', frame_labels[0]['frame'])
-
         for label in frame_labels:
-            print(label['bb_angle'])
+            # print(label['bb_angle'])
             x1 = (label['right'] + label['left']) / 2
             y1 = (label['top'] + label['bottom']) / 2
-            # print('Real angle:', label['bb_angle'])
             draw_arrow_from_angle(frame, x1, y1, label['bb_angle'], 30, (0, 0, 255))  # Red
 
         # to show how radians are translated to arrows
         draw_example_arrows(frame)
+
+        # Get vectors estimating shift for each tracked object on the frame due to camera motion
+        frame, vectors = camera_motion_estimator.update(frame, tracked_bbs)
 
         # Predict Cyclist Trajectory
         predictions, frame = predict_trajectory(mot_tracker, frame)
@@ -289,7 +292,7 @@ def predict_trajectory(mot_tracker, frame):
             dist = np.sqrt((center_xs[-1] - center_xs[0]) ** 2 + (center_ys[-1] - center_ys[-1]) ** 2)
             m, b = np.polyfit(center_xs, center_ys, 1)
 
-            print('m', m, '\tarctan:', np.arctan(m))
+            # print('m', m, '\tarctan:', np.arctan(m))
 
             prediction = {
                 'center_x': center_xs[-1],
@@ -298,7 +301,7 @@ def predict_trajectory(mot_tracker, frame):
             }
             predictions.append(prediction)
 
-            draw_arrow_from_m(frame, center_xs[-1], center_ys[-1], m, dist*10, direction,  color=(0, 255, 0)) #Green
+            draw_arrow_from_m(frame, center_xs[-1], center_ys[-1], m, dist, direction,  color=(0, 255, 0)) #Green
     return predictions, frame
 
 

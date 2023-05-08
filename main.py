@@ -5,7 +5,7 @@ warnings.warn = warn
 
 from src.load_utils import *
 from src.predict import predict_img, predict_video_yolov4, predict_video_from_frames_yolov4
-from  src.camera_motion_estimation import estimate_motion_mp4, estimate_motion_from_frames, estimate_motion_from_frames_sparse
+from  src.camera_motion_estimation import estimate_motion_mp4, estimate_motion_from_frames, estimate_motion_from_frames_sparse, calculate_optical_flow
 import os
 import cv2
 import random
@@ -77,3 +77,5 @@ if __name__ == '__main__':
     dst_path = 'results/results_videos/camera_motion_estimation.mp4'
     # estimate_motion_from_frames(src_frames_dir, dst_path, '0015')
     # estimate_motion_from_frames_sparse(src_frames_dir, dst_path, '0019')
+
+    # calculate_optical_flow(src_frames_dir, '0019')

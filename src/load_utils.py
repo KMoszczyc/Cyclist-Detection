@@ -648,7 +648,7 @@ def draw_arrow_from_angle(frame, x1, y1, angle, length, color=(0, 255, 0)):
     # x2 = x1 + np.cos(angle) * dist
     # y2 = y1 + np.sin(angle) * dist
 
-    x2, y2 = angle_to_vector((x1, y1), angle, length)
+    x2, y2 = angle_to_new_pos((x1, y1), angle, length)
     # print(x1, y1, x2, y2)
 
     cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2, tipLength=0.4)
@@ -669,18 +669,22 @@ def draw_example_arrows(frame):
     cv2.putText(frame,'PI', (x1 - length - 20, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3) #right
     cv2.putText(frame,'-PI/2', (x1 - 20, y1- length - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3) #top / forward/ away from camera
 
-
     return frame
 
 
-
-def angle_to_vector(start_point, angle, length):
+def angle_to_new_pos(start_point, angle, length):
     """Calculate a 2D vector from start point, angle and length"""
     x2 = start_point[0] + np.cos(angle) * length
     y2 = start_point[1] + np.sin(angle) * length
 
     # print(angle, np.cos(angle) * length, np.sin(angle) * length)
 
+    return int(x2), int(y2)
+
+def angle_to_vector(angle, length):
+    """Calculate a 2D vector from angle and length"""
+    x2 = np.cos(angle) * length
+    y2 = np.sin(angle) * length
     return int(x2), int(y2)
 
 def vector_to_angle(x1,x2, y1, y2):
@@ -711,8 +715,8 @@ def draw_perpendicular_line(img, start_point, end_point, length):
 
     if end_point[1] < start_point[1]:
         angle *= -1
-    perpendicular_start_point = angle_to_vector(end_point, angle + np.pi / 2, length / 2)
-    perpendicular_end_point = angle_to_vector(end_point, angle - np.pi / 2, length / 2)
+    perpendicular_start_point = angle_to_new_pos(end_point, angle + np.pi / 2, length / 2)
+    perpendicular_end_point = angle_to_new_pos(end_point, angle - np.pi / 2, length / 2)
 
     cv2.line(img, perpendicular_start_point, perpendicular_end_point, (0, 0, 255), 1)
 

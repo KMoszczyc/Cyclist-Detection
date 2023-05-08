@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import mode
 from sklearn.cluster import KMeans
 from src.load_utils import get_kitti_tracking_img_filepaths, get_kitti_tracking_labels, get_frame_labels, draw_arrow_from_angle, vector_to_angle
-
+from src.camera_motion_estimator import CameraMotionEstimator
 
 # This function allows to calculate optical flow trajectories (Don't remember where I actually found the source code)
 # The code also allows to specify step value. The greater the value the more sparse the calculation and visualisation
@@ -115,6 +115,97 @@ def estimate_motion(angles, translation):
     return ang_mode, transl_mode, ratio, steady
 
 
+def calculate_optical_flow(src_frames_dir, recording_num):
+    img_filepaths = get_kitti_tracking_img_filepaths(src_frames_dir, recording_num)
+    camera_motion_estimator = CameraMotionEstimator(img_filepaths)
+
+    for i in range(1, len(img_filepaths)):
+        frame = cv2.imread(img_filepaths[i])
+        masked_frame = camera_motion_estimator.update(frame, [])
+
+        cv2.imshow('frame', masked_frame)
+        k = cv2.waitKey(0) & 0xff
+        if k == 27:
+            break
+
+
+def estimate_motion_from_frames_sparse(src_frames_dir, dst_path, recording_num):
+    img_filepaths = get_kitti_tracking_img_filepaths(src_frames_dir, recording_num)
+
+    img1 = cv2.imread(img_filepaths[0])
+    width = int(img1.shape[1])  # float `width`
+    height = int(img1.shape[0])
+    fps = 30
+
+    print(width, height, fps)
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(dst_path, fourcc, fps, (width, height))
+
+    max_corners = 200
+    feature_params = dict(maxCorners=max_corners,
+                          qualityLevel=0.01,
+                          minDistance=7,
+                          blockSize=7)
+    # Parameters for lucas kanade optical flow
+    lk_params = dict(winSize=(15, 15),
+                     maxLevel=2,
+                     criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
+
+    # SURF
+    fast = cv2.FastFeatureDetector_create()
+
+    # Create some random colors
+    color = np.random.randint(0, 255, (max_corners, 3))
+    # Take first frame and find corners in it
+    previous_frame = cv2.imread(img_filepaths[0])
+    old_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
+
+    p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, **feature_params)
+    # kp = fast.detect(old_gray, None)
+    # p1 = cv2.KeyPoint_convert(kp)
+    #
+    # print(p0)
+    # print('-------')
+    # print(p1)
+
+    # Create a mask image for drawing purposes
+    mask = np.zeros_like(previous_frame)
+
+    for i in range(1, len(img_filepaths)):
+        frame = cv2.imread(img_filepaths[i])
+        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Recalculate keypoints and reset mask with paths after some time
+        if i % 5 == 0:
+            p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, **feature_params)
+            mask = np.zeros_like(previous_frame)
+
+        # calculate optical flow
+        p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
+        # Select good points
+        if p1 is not None:
+            good_new = p1[st == 1]
+            good_old = p0[st == 1]
+
+        # draw the tracks
+        for i, (new, old) in enumerate(zip(good_new, good_old)):
+            a, b = new.ravel()
+            c, d = old.ravel()
+            mask = cv2.line(mask, (int(a), int(b)), (int(c), int(d)), color[i].tolist(), 2)
+            frame = cv2.circle(frame, (int(a), int(b)), 5, color[i].tolist(), -1)
+
+        img = cv2.add(frame, mask)
+        cv2.imshow('frame', img)
+        k = cv2.waitKey(0) & 0xff
+        if k == 27:
+            break
+
+        # Now update the previous frame and previous points
+        old_gray = frame_gray.copy()
+        p0 = good_new.reshape(-1, 1, 2)
+
+    out.release()
+
 def estimate_motion_from_frames(src_frames_dir, dst_path, recording_num):
     # set parameters for text drawn on the frames
     font = cv2.FONT_HERSHEY_COMPLEX
@@ -192,85 +283,6 @@ def estimate_motion_from_frames(src_frames_dir, dst_path, recording_num):
         c = cv2.waitKey(0)
         if c & 0xFF == ord('q'):
             break
-
-    out.release()
-
-def estimate_motion_from_frames_sparse(src_frames_dir, dst_path, recording_num):
-    img_filepaths = get_kitti_tracking_img_filepaths(src_frames_dir, recording_num)
-
-    img1 = cv2.imread(img_filepaths[0])
-    width = int(img1.shape[1])  # float `width`
-    height = int(img1.shape[0])
-    fps = 30
-
-    print(width, height, fps)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(dst_path, fourcc, fps, (width, height))
-
-    max_corners = 200
-    feature_params = dict(maxCorners=max_corners,
-                          qualityLevel=0.01,
-                          minDistance=7,
-                          blockSize=7)
-    # Parameters for lucas kanade optical flow
-    lk_params = dict(winSize=(15, 15),
-                     maxLevel=2,
-                     criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
-
-    # SURF
-    fast = cv2.FastFeatureDetector_create()
-
-    # Create some random colors
-    color = np.random.randint(0, 255, (max_corners, 3))
-    # Take first frame and find corners in it
-    previous_frame = cv2.imread(img_filepaths[0])
-    old_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
-
-
-    p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, **feature_params)
-    # kp = fast.detect(old_gray, None)
-    # p1 = cv2.KeyPoint_convert(kp)
-    #
-    # print(p0)
-    # print('-------')
-    # print(p1)
-
-
-    # Create a mask image for drawing purposes
-    mask = np.zeros_like(previous_frame)
-
-    for i in range(1, len(img_filepaths)):
-        frame = cv2.imread(img_filepaths[i])
-        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        # Recalculate keypoints and reset mask with paths after some time
-        if i % 5 == 0:
-            p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, **feature_params)
-            mask = np.zeros_like(previous_frame)
-
-        # calculate optical flow
-        p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
-        # Select good points
-        if p1 is not None:
-            good_new = p1[st == 1]
-            good_old = p0[st == 1]
-
-        # draw the tracks
-        for i, (new, old) in enumerate(zip(good_new, good_old)):
-            a, b = new.ravel()
-            c, d = old.ravel()
-            mask = cv2.line(mask, (int(a), int(b)), (int(c), int(d)), color[i].tolist(), 2)
-            frame = cv2.circle(frame, (int(a), int(b)), 5, color[i].tolist(), -1)
-
-        img = cv2.add(frame, mask)
-        cv2.imshow('frame', img)
-        k = cv2.waitKey(0) & 0xff
-        if k == 27:
-            break
-
-        # Now update the previous frame and previous points
-        old_gray = frame_gray.copy()
-        p0 = good_new.reshape(-1, 1, 2)
 
     out.release()
 
