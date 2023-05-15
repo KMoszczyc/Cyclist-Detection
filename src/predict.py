@@ -8,7 +8,8 @@ import cv2
 from PIL import Image
 from src.sort_tracking import *
 import numpy as np
-from src.load_utils import get_kitti_tracking_img_filepaths, get_kitti_tracking_labels, get_frame_labels, draw_arrow_from_angle, vector_to_angle, draw_example_arrows
+from src.load_utils import get_kitti_tracking_img_filepaths, get_kitti_tracking_labels, get_frame_labels, draw_arrow_from_angle, vector_to_angle, \
+    draw_example_arrows
 from src.metrics import Metrics
 from src.camera_motion_estimator import CameraMotionEstimator
 
@@ -194,6 +195,7 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path, conf
     out.release()
     cv2.destroyAllWindows()
 
+
 # --------------------------------------------------------------------
 def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_num, output_video_path, weights_path, config_path):
     net = cv2.dnn.readNetFromDarknet(config_path, weights_path)
@@ -218,7 +220,7 @@ def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_n
                        min_hits=3,
                        iou_threshold=0.3)
     metrics = Metrics()
-    camera_motion_estimator = CameraMotionEstimator(img_filepaths)
+    camera_motion_estimator = CameraMotionEstimator(img_filepaths, width, height)
     labels = get_kitti_tracking_labels(src_labels_dir, recording_num)
 
     for f in img_filepaths:
@@ -247,8 +249,8 @@ def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_n
 
         # Draw validation arrows
         frame_labels = get_frame_labels(labels, metrics.frame_counter)
-        if frame_labels:
-            print('Frame id:', metrics.frame_counter, '\tLabel id:', frame_labels[0]['frame'])
+        # if frame_labels: print('Frame id:', metrics.frame_counter, '\tLabel id:', frame_labels[0]['frame'])
+
         for label in frame_labels:
             # print(label['bb_angle'])
             x1 = (label['right'] + label['left']) / 2
@@ -259,19 +261,20 @@ def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_n
         draw_example_arrows(frame)
 
         # Get vectors estimating shift for each tracked object on the frame due to camera motion
-        frame, vectors = camera_motion_estimator.update(frame, tracked_bbs)
+        frame, correction_vectors = camera_motion_estimator.update(frame, tracked_bbs)
+        camera_motion_estimation_end_time = time.time()
 
         # Predict Cyclist Trajectory
-        predictions, frame = predict_trajectory(mot_tracker, frame)
+        predictions, frame = predict_trajectory(mot_tracker, correction_vectors, frame)
         trajectory_prediction_end_time = time.time()
 
-        metrics.update(predictions, 0, start_time, yolo_end_time, tracking_end_time, trajectory_prediction_end_time)
+        metrics.update(predictions, 0, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time, trajectory_prediction_end_time)
 
         # Save to mp4
         out.write(frame)
         cv2.imshow('frame', frame)
-        # c = cv2.waitKey(1)
-        c = cv2.waitKey(0)
+        # c = cv2.waitKey(1) # video
+        c = cv2.waitKey(0)  # frame  by frame
         if c & 0xFF == ord('q'):
             break
 
@@ -279,29 +282,42 @@ def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_n
     cv2.destroyAllWindows()
 
 
-def predict_trajectory(mot_tracker, frame):
+def predict_trajectory(mot_tracker, correction_vectors, frame):
     predictions = []
+    num_of_past_bbs = 5
+
     for tracker in mot_tracker.trackers:
         history_len = len(tracker.observed_history)
-        # if mot_tracker.is_tracker_visible(tracker):
-        bb_id = min(history_len, 5)
+        bb_id = min(history_len, num_of_past_bbs)  # at last of 5 tracker positions
+
         center_xs = [get_center_x(bb) for bb in tracker.observed_history[-bb_id:]]
         center_ys = [get_center_y(bb) for bb in tracker.observed_history[-bb_id:]]
         if center_xs:
             direction = 1 if center_xs[-1] - center_xs[0] > 0 else -1
-            dist = np.sqrt((center_xs[-1] - center_xs[0]) ** 2 + (center_ys[-1] - center_ys[-1]) ** 2)
+            dist = np.sqrt((center_xs[-1] - center_xs[0]) ** 2 + (center_ys[-1] - center_ys[0]) ** 2) / num_of_past_bbs
             m, b = np.polyfit(center_xs, center_ys, 1)
+
+            draw_arrow_from_m(frame, center_xs[-1], center_ys[-1], m, dist, direction, color=(0, 255, 0))  # Green
+
+            correction_vector_temp = [vector['vector'] for vector in correction_vectors if tracker.id == vector['id']]
+            if correction_vector_temp and correction_vector_temp[0]:
+                correction_vector = correction_vector_temp[0]
+                pred_x, pred_y = m_to_xy(center_xs[-1], center_ys[-1], m, dist, direction)
+                corrected_pred_x = pred_x + correction_vector[0]
+                corrected_pred_y = pred_y + correction_vector[1]
+                print('Raw pred:', pred_x, pred_y, '\tCorrection vector:', correction_vector, '\tCorrected pred:', corrected_pred_x, corrected_pred_y)
+                cv2.arrowedLine(frame, (int(center_xs[-1]), int(center_ys[-1])), (int(corrected_pred_x), int(corrected_pred_y)), (0, 255, 255), 2,
+                                tipLength=0.4)  # Yellow
 
             # print('m', m, '\tarctan:', np.arctan(m))
 
             prediction = {
-                'center_x': center_xs[-1],
-                'center_y': center_ys[-1],
+                'center_x': 0,
+                'center_y': 0,
                 'angle': np.arctan(m)
             }
             predictions.append(prediction)
 
-            draw_arrow_from_m(frame, center_xs[-1], center_ys[-1], m, dist, direction,  color=(0, 255, 0)) #Green
     return predictions, frame
 
 
@@ -433,3 +449,13 @@ def draw_arrow_from_m(frame, x1, y1, m, dist, direction, color=(0, 255, 0)):
 
     cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2, tipLength=0.4)
     # print('Predicted angle:', vector_to_angle(x1, x1, y1, y2), 'm:', m)
+
+
+def m_to_xy(x1, y1, m, dist, direction):
+    dist_scaled = dist / 1
+    dx = dist_scaled / np.sqrt(1 + (m * m))
+    dy = m * dx
+
+    x2 = x1 + dx * direction
+    y2 = y1 + dy
+    return x2, y2
