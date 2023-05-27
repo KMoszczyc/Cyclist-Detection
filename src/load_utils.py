@@ -50,6 +50,7 @@
 
 # example: 0 1 Cyclist 0 0 -1.936993 737.619499 161.531951 931.112229 374.000000 1.739063 0.824591 1.785241 1.640400 1.675660 5.776261 -1.675458
 
+# BB == BBX == BBOX == Bounding Box
 
 from collections import Counter
 from PIL import Image
@@ -90,15 +91,15 @@ def create_dir(path):
         os.makedirs(path, mode=0o777)
 
 
-def display_image(id, img_src_dir, label_src_dir, is_yolo, is_raw_kitti):
+def display_image(img_id, img_src_dir, label_src_dir, is_yolo, is_raw_kitti):
     """
     Display the image with given id with it's bounding boxes in yolo format.
     """
 
-    str_id = id_to_str(id)
-    img_path = f'{img_src_dir}{str_id}.jpg'
-    label_path = f'{label_src_dir}{str_id}.txt'
+    img_path = os.path.join(img_src_dir, f'{img_id}.jpg')
+    label_path = os.path.join(label_src_dir, f'{img_id}.txt')
     img = cv2.imread(img_path)
+    print(img_path, label_path)
 
     bounding_boxes = read_bounding_boxes(label_path)
 
@@ -113,7 +114,6 @@ def display_image(id, img_src_dir, label_src_dir, is_yolo, is_raw_kitti):
         cv2.rectangle(img, (coords[0], coords[1]), (coords[2], coords[3]), (255, 0, 0), 2)
 
     cv2.imshow('img', img)
-
     cv2.waitKey(0)
 
 
@@ -137,7 +137,7 @@ def display_raw_kitti_image(id, img_src_dir, label_src_dir):
 
         x1 = (label['right'] + label['left']) / 2
         y1 = (label['top'] + label['bottom']) / 2
-        draw_arrow_from_angle(img, x1, y1, label['angle'], 30, (0, 255, 0)) #default angle by kitti - green
+        draw_arrow_from_angle(img, x1, y1, label['angle'], 30, (0, 255, 0))  # default angle by kitti - green
         corners_3d_cam2 = compute_3d_box_cam2(label['height'], label['width'], label['length'], label['x'], label['y'], label['z'], label['rotation_y'])
         pts_2d = calib.project_rect_to_image(corners_3d_cam2.T)
         center_x = int(sum(pts_2d[:, 0]) / len(pts_2d))
@@ -150,7 +150,7 @@ def display_raw_kitti_image(id, img_src_dir, label_src_dir):
         front_bottom_y = pts_2d[0][1]
 
         angle = np.arctan2(front_bottom_y - back_bottom_y, front_bottom_x - back_bottom_x)
-        draw_arrow_from_angle(img, center_x, center_y, angle, 40, (0, 0, 255)) #calculated angle - red
+        draw_arrow_from_angle(img, center_x, center_y, angle, 40, (0, 0, 255))  # calculated angle - red
         print('Center x:', center_x, 'Center y:', center_y)
         # cv2.arrowedLine(img, (int(back_bottom_x), int(back_bottom_y)), (int(front_bottom_x), int(front_bottom_y)), (0, 0, 255), 2, tipLength=0.4)
 
@@ -164,15 +164,16 @@ def cut_img(img, target_width, bounding_boxes):
     """
     Crop given image to desired target_width of it without losing valuable information.
     If it's not possible then use min width that contains all bounding boxes.
-    (KITTI images are quite wide 1242x375 - which is 3.31/1)
+    (KITTI images are quite wide 1242x375 - which is 3.31/1) so when they are squared by padding top and bottom with black pixels the src img gets very small
     """
-    # target_w = int(16 / 9 * 370)
+    if not bounding_boxes:
+        return img, bounding_boxes
 
     h = img.shape[0]
     w = img.shape[1]
 
-    min_left = min([box['left'] for box in bounding_boxes])
-    max_right = max([box['right'] for box in bounding_boxes])
+    min_left = min([box[0] for box in bounding_boxes])
+    max_right = max([box[2] for box in bounding_boxes])
     middle = int((min_left + max_right) / 2)
 
     left = middle - int(target_width / 2)
@@ -192,8 +193,8 @@ def cut_img(img, target_width, bounding_boxes):
         left = min(min_left, right - target_width)
 
     for bb in bounding_boxes:
-        bb['left'] -= left
-        bb['right'] -= left
+        bb[0] -= left
+        bb[2] -= left
 
     return img[:, int(left):int(right)], bounding_boxes
 
@@ -273,7 +274,7 @@ def yolo_to_coords(img_size, x_center, y_center, box_w, box_h):
     bottom = int(y_center + box_h / 2)
     left = int(x_center - box_w / 2)
     right = int(x_center + box_w / 2)
-    return left, top, right, bottom
+    return [left, top, right, bottom]
 
 
 def read_coords_bounding_boxes(bb_path):
@@ -428,12 +429,40 @@ def coords_to_yolo_label(img_src, label_src, dst):
     for filename in filenames:
         file_id = filename.split('.')[0]
         img_filename = file_id + '.jpg'
-        img = cv2.imread(f'{img_src}{img_filename}')
+        img = cv2.imread(os.path.join(img_src, img_filename))
 
-        coords_bbox = read_bounding_boxes(f'{label_src}{filename}')
+        coords_bbox = read_bounding_boxes(os.path.join(label_src, filename))
         yolo_bbox = [coords_to_yolo(img.shape, *bb) for bb in coords_bbox]
 
         write_yolo_bboxes(f'{dst}{filename}', yolo_bbox)
+
+
+def kitti_tracking_coords_to_yolo_label(img_src, label_src, label_dst):
+    """
+    TODO: Convert Kitti tracking cartesian coords labels to yolov4 (both in txt format)
+    Also remove occluded objects
+    """
+    create_dir(label_dst)
+    # recording_nums = [str(i).zfill(4) for i in range(21) if f'00{i}' not in test_recording_nums]
+    recording_nums = [str(i).zfill(4) for i in range(21)]
+    img_filenames = os.listdir(img_src)
+
+    for recording_num in recording_nums:
+        print(recording_num)
+        # labels = get_kitti_tracking_labels(label_src, recording_num)
+        labels = get_kitti_tracking_not_occluded_labels(label_src, recording_num)
+
+        current_img_filenames = [img_filename for img_filename in img_filenames if recording_num == img_filename.split('_')[0]]
+        for i, filename in enumerate(current_img_filenames):
+            file_id = filename.split('.')[0]
+            img = cv2.imread(os.path.join(img_src, filename))
+            frame_labels = get_frame_labels(labels, i)
+            coords_bbs = [[label['left'], label['top'], label['right'], label['bottom']] for label in frame_labels]
+            yolo_bbs = [coords_to_yolo(img.shape, *bb) for bb in coords_bbs]
+
+            dst_label_filename = f'{file_id}.txt'
+            print(dst_label_filename, coords_bbs, yolo_bbs)
+            write_yolo_bboxes(os.path.join(label_dst, dst_label_filename), yolo_bbs)
 
 
 def filter_images_without_cyclists(img_src_dir, label_src_dir):
@@ -537,19 +566,20 @@ def resize_images(src_dir, dst_dir, target_size=416, square_img=True):
         img_filename = img_filenames[i]
         label_filename = img_filename.split('.')[0] + '.txt'
 
-        img = cv2.imread(f'{src_dir}{img_filename}')
+        img = cv2.imread(os.path.join(src_dir, img_filename))
 
         # Adjust bounding boxes when squaring the image (filling missing space with black pixels)
         if square_img:
-            yolo_bboxes = read_bounding_boxes(f'{src_dir}{label_filename}')
+            yolo_bboxes = read_bounding_boxes(os.path.join(src_dir, label_filename))
             coord_bboxes = [yolo_to_coords(img.shape, bb[0], bb[1], bb[2], bb[3]) for bb in yolo_bboxes]
-            yolo_bboxes_sqr = [coords_to_yolo_sqr(img.shape, bb[0], bb[1], bb[2], bb[3]) for bb in coord_bboxes]
-            write_yolo_bboxes(f'{dst_dir}{label_filename}', yolo_bboxes_sqr)
-        else:
-            shutil.copy(f'{src_dir}{label_filename}', f'{dst_dir}{label_filename}')
 
-        # crop
-        # img, bounding_boxes = cut_img(img, bounding_boxes)
+            # cut img so it's not so wide - 375 * 16/9 = 667
+            img, cut_bboxes = cut_img(img, 667, coord_bboxes)
+
+            yolo_bboxes_sqr = [coords_to_yolo_sqr(img.shape, bb[0], bb[1], bb[2], bb[3]) for bb in cut_bboxes]
+            write_yolo_bboxes(os.path.join(dst_dir, label_filename), yolo_bboxes_sqr)
+        else:
+            shutil.copy(os.path.join(src_dir, label_filename), os.path.join(dst_dir, label_filename))
 
         scale = target_size / max(img.shape[1], img.shape[0])
         width = int(img.shape[1] * scale)
@@ -558,8 +588,8 @@ def resize_images(src_dir, dst_dir, target_size=416, square_img=True):
         img = cv2.resize(img, (width, height), interpolation=cv2.INTER_AREA)
         img_squared = square_image(img)
 
-        cv2.imwrite(f'{dst_dir}{img_filename}', img_squared, [int(cv2.IMWRITE_JPEG_QUALITY),
-                                                              90])  # 90% jpg quality reduces file size significantly, without losing the image quality
+        cv2.imwrite(os.path.join(dst_dir, img_filename), img_squared, [int(cv2.IMWRITE_JPEG_QUALITY),
+                                                                       90])  # 90% jpg quality reduces file size significantly, without losing the image quality
 
 
 def square_image(img):
@@ -615,12 +645,12 @@ def display_random_img(img_src_dir, label_src_dir, is_yolo=True, is_raw_kitti=Fa
     filenames = os.listdir(img_src_dir)
     while True:
         filename = random.choice(filenames)
-        img_id = int(filename.split('.')[0])
+        img_id = filename.split('.')[0]
         print('-----------------', filename, '-----------------')
         if is_raw_kitti:
             display_raw_kitti_image(img_id, img_src_dir, label_src_dir)
         else:
-            display_image(img_id, img_src_dir, label_src_dir, is_yolo)
+            display_image(img_id, img_src_dir, label_src_dir, is_yolo, is_raw_kitti)
 
 
 def write_yolo_bboxes(label_dst, yolo_bboxes):
@@ -660,14 +690,14 @@ def draw_example_arrows(frame):
     length = 15
 
     draw_arrow_from_angle(frame, x1, y1, 0, 15, color=(0, 255, 0))
-    draw_arrow_from_angle(frame, x1, y1, np.pi/2, 15, color=(0, 255, 0))
+    draw_arrow_from_angle(frame, x1, y1, np.pi / 2, 15, color=(0, 255, 0))
     draw_arrow_from_angle(frame, x1, y1, np.pi, 15, color=(0, 255, 0))
-    draw_arrow_from_angle(frame, x1, y1, -np.pi/2, 15, color=(0, 255, 0))
+    draw_arrow_from_angle(frame, x1, y1, -np.pi / 2, 15, color=(0, 255, 0))
 
-    cv2.putText(frame,'0', (x1 + length + 10, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3) #right
-    cv2.putText(frame,'PI/2', (x1 - 15, y1+length+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3) #bottom / towards camera
-    cv2.putText(frame,'PI', (x1 - length - 20, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3) #right
-    cv2.putText(frame,'-PI/2', (x1 - 20, y1- length - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3) #top / forward/ away from camera
+    cv2.putText(frame, '0', (x1 + length + 10, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3)  # right
+    cv2.putText(frame, 'PI/2', (x1 - 15, y1 + length + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3)  # bottom / towards camera
+    cv2.putText(frame, 'PI', (x1 - length - 20, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3)  # right
+    cv2.putText(frame, '-PI/2', (x1 - 20, y1 - length - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, 3)  # top / forward/ away from camera
 
     return frame
 
@@ -681,15 +711,18 @@ def angle_to_new_pos(start_point, angle, length):
 
     return int(x2), int(y2)
 
+
 def angle_to_vector(angle, length):
     """Calculate a 2D vector from angle and length"""
     x2 = np.cos(angle) * length
     y2 = np.sin(angle) * length
     return int(x2), int(y2)
 
-def vector_to_angle(x1,x2, y1, y2):
+
+def vector_to_angle(x1, x2, y1, y2):
     angle = np.arctan2(y2 - y1, x2 - x1)
     return angle
+
 
 def two_points_to_angle(point_a, point_c):
     """Calculate angle next to point_a (camera point) where point_c is the cyclist center and point_b has the same y as point_a and same x as point_c.
@@ -745,14 +778,6 @@ def reduce_image_size(src_path, dst_dir, new_filename):
     cv2.imwrite(f'{dst_dir}{jpg_filename}', img, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
 
 
-from skimage.registration import phase_cross_correlation
-
-
-def calculate_frame_shift(frame1, frame2):
-    shift, error, diffphase = phase_cross_correlation(frame1, frame2, upsample_factor=10)
-    print('shift', shift, 'error', error, 'diffphase', diffphase)
-
-
 def display_tracking_img(img_src_dir, label_src_dir, recording_num):
     img_filepaths = get_kitti_tracking_img_filepaths(img_src_dir, recording_num)
     labels = get_kitti_tracking_labels(label_src_dir, recording_num)
@@ -768,6 +793,7 @@ def display_tracking_img(img_src_dir, label_src_dir, recording_num):
 
         cv2.imshow('img', frame1)
         cv2.waitKey(0)
+
 
 def display_bb(label, img):
     cv2.rectangle(img, (int(label['left']), int(label['top'])), (int(label['right']), int(label['bottom'])), (255, 0, 0), 2)
@@ -785,8 +811,43 @@ def get_kitti_tracking_img_filepaths(img_src_dir, recording_num):
 
     return img_filenames
 
+
 def get_frame_labels(labels, frame_num):
     return [label for label in labels if label['frame'] == str(frame_num)]
+
+
+def filter_recordings_from_merged_data(src_dir, dst_dir, test_recording_nums):
+    """Filter images and labels from recordings saved for testing (test_recording_nums)"""
+    img_filenames = [filename for filename in os.listdir(src_dir) if filename.endswith('.jpg') and filename.split('_')[0] not in test_recording_nums]
+    label_filenames = [filename for filename in os.listdir(src_dir) if filename.endswith('.txt') and filename.split('_')[0] not in test_recording_nums]
+
+    create_dir(dst_dir)
+
+    for img_filename in img_filenames:
+        shutil.copy(os.path.join(src_dir, img_filename), os.path.join(dst_dir, img_filename))
+
+    for label_filename in label_filenames:
+        shutil.copy(os.path.join(src_dir, label_filename), os.path.join(dst_dir, label_filename))
+
+def display_kitti_tracking_occluded(img_src_dir, labels_src_dir, recording_num, occlusion):
+    labels = get_kitti_tracking_labels(labels_src_dir, recording_num)
+    occlusions = [0, 1, 2, 3]
+    occluded_cyclists_counts = [len([label for label in labels if int(label['occluded']) == occlusion]) for occlusion in occlusions]
+    print(occlusions)
+    print(occluded_cyclists_counts)
+
+    occluded_labels = [label for label in labels if int(label['occluded']) == occlusion]
+
+    for label in occluded_labels:
+        img_filename = f"{recording_num}_{str(label['frame']).zfill(6)}.jpg"
+        print(img_filename)
+        img_path = os.path.join(img_src_dir, img_filename)
+        img = cv2.imread(img_path)
+        cv2.rectangle(img, (int(label['left']), int(label['top'])), (int(label['right']), int(label['bottom'])), (255, 0, 0), 2)
+        cv2.imshow('img', img)
+        cv2.waitKey(0)
+
+
 
 def get_kitti_tracking_labels(labels_src_dir, recording_num):
     label_filenames = os.listdir(labels_src_dir)
@@ -798,6 +859,14 @@ def get_kitti_tracking_labels(labels_src_dir, recording_num):
         label['bb_angle'] = calculate_angle_from_bb(label, recording_num)
 
     return filtered_labels
+
+def get_kitti_tracking_not_occluded_labels(labels_src_dir, recording_num):
+    """Get kitti tracking labels, but with occlusion of 0 and 1, remove objects with occlusion of 2 and 3"""
+
+    labels = get_kitti_tracking_labels(labels_src_dir, recording_num)
+    allowed_occlusions = [0, 1]
+    not_occluded_labels = [label for label in labels if int(label['occluded']) in allowed_occlusions]
+    return not_occluded_labels
 
 def transform_tracking_calib_files(src_calib_dir, dst_calib_dir):
     calib_filenames = os.listdir(src_calib_dir)
@@ -813,6 +882,8 @@ def transform_tracking_calib_files(src_calib_dir, dst_calib_dir):
         with open(os.path.join(dst_calib_dir, filename), 'w') as output_file:
             print(''.join(lines))
             output_file.write(''.join(lines))
+
+
 def calculate_angle_from_bb(label, recording_num):
     calibration_path = f'data/kitti_tracking_data/raw/calib_formatted/{recording_num}.txt'
     # calibration_path = f'data/kitti_tracking_data/raw/data_tracking_calib/training/calib/{recording_num}.txt'
@@ -835,27 +906,135 @@ def calculate_angle_from_bb(label, recording_num):
     angle = np.arctan2(front_bottom_y - back_bottom_y, front_bottom_x - back_bottom_x)
     return angle
 
+
 def count_cyclists_per_recording(labels_src_dir):
     label_filenames = os.listdir(labels_src_dir)
 
-
-    imgs_with_cyclists= []
+    imgs_with_cyclists = []
     cyclist_detections = []
-
+    imgs_num = len(os.listdir('data/kitti_tracking_data/merged_raw'))
     for f in label_filenames:
         labels = read_raw_kitti_tracking_labels(os.path.join(labels_src_dir, f))
+
         filtered_labels = [label for label in labels if label['type'] == 'Cyclist']
         frames = set([label['frame'] for label in filtered_labels])
 
         cyclist_detections.append(len(filtered_labels))
         imgs_with_cyclists.append(len(frames))
 
+    print('-------------------------------')
     print('Stats per recoding (21 recordings, from 0000 to 0020)')
     print('Cyclist Detections num:', cyclist_detections)
     print('Images num with Cyclists:', imgs_with_cyclists)
 
+    print('Overall number of all images', imgs_num)
     print('Cyclist Detections sum:', sum(cyclist_detections))
     print('Images with Cyclists sum:', sum(imgs_with_cyclists))
+    print('-------------------------------')
+
+def count_cyclists_per_recording_yolo(labels_src_dir):
+    label_filenames = [filename for filename in os.listdir(labels_src_dir) if filename.endswith('.txt')]
+    imgs_num = len(label_filenames)
+    imgs_with_cyclists = [0]*21
+    cyclist_detections = [0]*21
+    for filename in label_filenames:
+        recording_num = filename.split('_')[0]
+        recording_num_int = int(recording_num)
+        bbs = read_bounding_boxes(os.path.join(labels_src_dir, filename))
+        num_of_cyclists = len(bbs)
+
+        if num_of_cyclists>0:
+            imgs_with_cyclists[recording_num_int] += 1
+
+        cyclist_detections[recording_num_int] +=num_of_cyclists
+
+    print('-------------------------------')
+    print('Stats per recoding (21 recordings, from 0000 to 0020)')
+    print('Cyclist Detections num:', cyclist_detections)
+    print('Images num with Cyclists:', imgs_with_cyclists)
+
+    print('Overall number of all images', imgs_num)
+    print('Cyclist Detections sum:', sum(cyclist_detections))
+    print('Images with Cyclists sum:', sum(imgs_with_cyclists))
+    print('-------------------------------')
 
 
 # def calculate_angle_from_3d_bb:
+
+def get_center_x(bb):
+    return (bb[0] + bb[2]) / 2
+
+
+def get_center_y(bb):
+    return (bb[1] + bb[3]) / 2
+
+
+def get_bb_width(bb):
+    return bb[2] - bb[0]
+
+
+def get_bb_height(bb):
+    return bb[3] - bb[1]
+
+
+def transform_bb(bb):
+    """
+    :param bb: [top_left_x,top_left_y, bottom_right_x, bottom_right_y]
+    :return: [center_x, center_y, width, height]
+    """
+    return get_center_x(bb), get_center_y(bb), get_bb_width(bb), get_bb_height(bb)
+
+
+def m_to_xy(x1, y1, m, dist, direction):
+    dist_scaled = dist / 1
+    dx = dist_scaled / np.sqrt(1 + (m * m))
+    dy = m * dx
+
+    x2 = x1 + dx * direction
+    y2 = y1 + dy
+    return x2, y2
+
+
+def draw_arrow_from_m(frame, x1, y1, m, dist, direction, color=(0, 255, 0)):
+    dist_scaled = dist / 1
+    dx = dist_scaled / np.sqrt(1 + (m * m))
+    dy = m * dx
+
+    x2 = x1 + dx * direction
+    y2 = y1 + dy
+
+    cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2, tipLength=0.4)
+    # print('Predicted angle:', vector_to_angle(x1, x1, y1, y2), 'm:', m)
+
+
+def draw_bb(frame, bb, color=(0, 0, 255)):
+    """
+    :param frame: opencv image
+    :param bb: [tl_x, tl_y, br_x, br_y]
+    :return:
+    """
+
+    return cv2.rectangle(frame, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])), color, 2)
+
+
+def draw_arrow_from_xy(frame, x1, y1, x2, y2, color=(0, 0, 255)):
+    """
+    :param frame: opencv image
+    :param bb: [tl_x, tl_y, br_x, br_y]
+    :return:
+    """
+
+    return cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2, tipLength=0.4)
+
+
+def calculate_raw_tracking_kitti_img_shapes(src_frames_dir):
+    img_filenames = os.listdir(src_frames_dir)
+    img_widths = set()
+    img_heights = set()
+
+    for filename in img_filenames:
+        img = cv2.imread(os.path.join(src_frames_dir, filename))
+        img_widths.add(img.shape[1])
+        img_heights.add(img.shape[0])
+
+    print(img_widths, img_heights)

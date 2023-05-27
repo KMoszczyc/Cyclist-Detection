@@ -10,7 +10,7 @@ import os
 import cv2
 import random
 
-
+# KITTI TRACKING RAW img widths and heights - {1224, 1241, 1242, 1238} {376, 370, 374, 375}
 TRAIN_IMAGES_DIR = 'data_raw/images/training/'
 TRAIN_LABELS_CLEANED_DIR = 'data_raw/labels/training_cleaned/'
 
@@ -37,15 +37,15 @@ if __name__ == '__main__':
     # count_img_sizes()
 
     # display_random_img('data/data_tsinghua_416/train/', 'data/data_tsinghua_416/train/')
-    # display_random_img('data/data_raw_kitti/data_kitti_416/train/', 'data/data_raw_kitti/data_kitti_416/train/', is_yolo=True)
+    # display_random_img('data/kitti_tracking_data/merged_not_occluded_filtered_cut_416', 'data/kitti_tracking_data/merged_not_occluded_filtered_cut_416', is_yolo=True)
     # display_random_img('data/data_raw_kitti/images/training_raw/', 'data/data_raw_kitti/labels/training_raw/', is_yolo=False, is_raw_kitti=True)
     #
 
     count_cyclists_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
+    count_cyclists_per_recording_yolo('data/kitti_tracking_data/merged_not_occluded_filtered_cut_416')
+
     # transform_tracking_calib_files('data/kitti_tracking_data/raw/data_tracking_calib/training/calib','data/kitti_tracking_data/raw/calib_formatted')
-
-    # display_tracking_img('data/kitti_tracking_data/merged_raw', 'data/kitti_tracking_data/raw/data_tracking_label_2/training', '0019')
-
+    # display_tracking_img('data/kitti_tracking_data/merged_raw', 'data/kitti_tracking_data/raw/data_tracking_label_2/training', '0020')
 
 
     # labels = read_raw_kitti_labels('data/data_raw_kitti/labels/training_raw/000001.txt')
@@ -65,9 +65,9 @@ if __name__ == '__main__':
     src_frames_dir = 'data/kitti_tracking_data/merged_raw'
     src_labels_dir = 'data/kitti_tracking_data/raw/data_tracking_label_2/training'
 
-    recording_num = '0015'
+    recording_num = '0019'
     output_video_path = f'results/results_videos/yolov4_sort_kitti{recording_num}.mp4'
-    predict_video_from_frames_yolov4(src_frames_dir,src_labels_dir,recording_num, output_video_path, weights_path, config_path)
+    # predict_video_from_frames_yolov4(src_frames_dir,src_labels_dir,recording_num, output_video_path, weights_path, config_path)
 
     # predict_video(input_video_path, output_video_path)
     # predict_video_yolov4_deepsort(input_video_path, output_video_path)
@@ -79,3 +79,23 @@ if __name__ == '__main__':
     # estimate_motion_from_frames_sparse(src_frames_dir, dst_path, '0019')
 
     # calculate_optical_flow(src_frames_dir, '0019')
+    #
+    label_dst = 'data/kitti_tracking_data/merged'
+    # kitti_tracking_coords_to_yolo_label(src_frames_dir, src_labels_dir, label_dst)
+
+    # display_random_img(src_frames_dir, label_dst, is_yolo=True, is_raw_kitti=False)
+    # resize_images('data/kitti_tracking_data/merged_not_occluded_filtered_raw', 'data/kitti_tracking_data/merged_not_occluded_filtered_cut_416', 416, square_img=True)
+
+
+    # display_random_img('data/kitti_tracking_data/merged_wide_416', 'data/kitti_tracking_data/merged_wide_416', is_yolo=True, is_raw_kitti=False)
+    # display_random_img('data/kitti_tracking_data/merged_cut_416', 'data/kitti_tracking_data/merged_cut_416', is_yolo=True, is_raw_kitti=False)
+
+
+    # Occlutions 0 and 1 are fine, 2 and 3 are too big (remove from training data)
+    # display_kitti_tracking_occluded(src_frames_dir, src_labels_dir, '0020', 2)
+
+    # filter_images_by_labels(src_frames_dir, 'data/kitti_tracking_data/merged', 'data/kitti_tracking_data/merged')
+
+    test_recording_nums = ['0013', '0019'] #0013 and 0019 are better for testing as there is lots of movement. 0015 will be better used for yolo training
+    # filter_recordings_from_merged_data('data/kitti_tracking_data/merged_not_occluded_raw', 'data/kitti_tracking_data/merged_not_occluded_filtered_raw', test_recording_nums)
+
