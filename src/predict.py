@@ -146,6 +146,9 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path, conf
 
         sort_end_time = time.time()
 
+
+        print(bbs)
+        print(tracked_bbs)
         # without tracking
         # for row in bbs:
         #     cv2.rectangle(frame, (int(row[0]), int(row[1])), (int(row[2]), int(row[3])), (0, 255, 0), 2)
@@ -270,7 +273,7 @@ def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_n
         predictions, predictions_split, frame = trajectory_model.predict_trajectory(mot_tracker, correction_vectors, frame)
         trajectory_prediction_end_time = time.time()
 
-        metrics.update(predictions, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time, trajectory_prediction_end_time)
+        metrics.update(detections, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time, trajectory_prediction_end_time)
 
         # Save to mp4
         out.write(frame)
@@ -430,5 +433,6 @@ def convert_yolov5_bb(df_bb, width, height):
 
 def get_center_pt(bb):
     return ((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2)
+
 
 

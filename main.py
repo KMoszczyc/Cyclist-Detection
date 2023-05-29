@@ -41,8 +41,8 @@ if __name__ == '__main__':
     # display_random_img('data/data_raw_kitti/images/training_raw/', 'data/data_raw_kitti/labels/training_raw/', is_yolo=False, is_raw_kitti=True)
     #
 
-    count_cyclists_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
-    count_cyclists_per_recording_yolo('data/kitti_tracking_data/merged_not_occluded_filtered_cut_416')
+    # count_cyclists_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
+    # count_cyclists_per_recording_yolo('data/kitti_tracking_data/merged_not_occluded_filtered_cut_416')
 
     # transform_tracking_calib_files('data/kitti_tracking_data/raw/data_tracking_calib/training/calib','data/kitti_tracking_data/raw/calib_formatted')
     # display_tracking_img('data/kitti_tracking_data/merged_raw', 'data/kitti_tracking_data/raw/data_tracking_label_2/training', '0020')
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     input_video_path = 'data/test_videos/bikes2.mp4'
     output_video_path = 'results/results_videos/yolov4_sort.mp4'
-    weights_path = 'model/yolov4_weights/yolov4-kitti_416_best.weights'
+    weights_path = 'model/yolov4_weights/yolov4-obj_best.weights'
     config_path = 'model/yolov4-configs/yolov4-obj.cfg'
 
     # predict_video_yolov4(input_video_path, output_video_path, weights_path, config_path)
@@ -65,9 +65,9 @@ if __name__ == '__main__':
     src_frames_dir = 'data/kitti_tracking_data/merged_raw'
     src_labels_dir = 'data/kitti_tracking_data/raw/data_tracking_label_2/training'
 
-    recording_num = '0019'
+    recording_num = '0013'
     output_video_path = f'results/results_videos/yolov4_sort_kitti{recording_num}.mp4'
-    # predict_video_from_frames_yolov4(src_frames_dir,src_labels_dir,recording_num, output_video_path, weights_path, config_path)
+    predict_video_from_frames_yolov4(src_frames_dir,src_labels_dir,recording_num, output_video_path, weights_path, config_path)
 
     # predict_video(input_video_path, output_video_path)
     # predict_video_yolov4_deepsort(input_video_path, output_video_path)
@@ -84,8 +84,9 @@ if __name__ == '__main__':
     # kitti_tracking_coords_to_yolo_label(src_frames_dir, src_labels_dir, label_dst)
 
     # display_random_img(src_frames_dir, label_dst, is_yolo=True, is_raw_kitti=False)
-    # resize_images('data/kitti_tracking_data/merged_not_occluded_filtered_raw', 'data/kitti_tracking_data/merged_not_occluded_filtered_cut_416', 416, square_img=True)
 
+    # resize_images('data/kitti_tracking_data/merged_not_occluded_filtered_raw', 'data/kitti_tracking_data/merged_not_occluded_filtered_cut_640', 640, square_img=True)
+    #display_random_img('data/kitti_tracking_data/merged_not_occluded_filtered_cut_640', 'data/kitti_tracking_data/merged_not_occluded_filtered_cut_640', is_yolo=True, is_raw_kitti=False)
 
     # display_random_img('data/kitti_tracking_data/merged_wide_416', 'data/kitti_tracking_data/merged_wide_416', is_yolo=True, is_raw_kitti=False)
     # display_random_img('data/kitti_tracking_data/merged_cut_416', 'data/kitti_tracking_data/merged_cut_416', is_yolo=True, is_raw_kitti=False)

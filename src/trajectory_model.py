@@ -11,25 +11,26 @@ class TrajectoryModel:
 
     def predict_trajectory(self, mot_tracker, correction_vectors, frame):
         all_bb_predictions = []
-        all_bb_predictions_split = [[],[],[]]
+        all_bb_predictions_split = [[], [], []]
         num_of_past_bbs = 5
 
         for tracker in mot_tracker.trackers:
             history_len = len(tracker.observed_history)
             bb_id = min(history_len, num_of_past_bbs)  # at last of 5 tracker positions
-            if len(tracker.observed_history[-bb_id:])<2:
+            if len(tracker.observed_history[-bb_id:]) < 2:
                 continue
 
             center_xs, center_ys, widths, heights = zip(*[transform_bb(bb) for bb in tracker.observed_history[-bb_id:]])
 
-            # Predict for the next [1, 3, 10] frames
-            bb_width_predictions = self.predict_linear_values(widths)
-            bb_height_predictions = self.predict_linear_values(heights)
+            # Predict for the next [1, 3, 10] frames (keep width and height of the bb the same as in the last frame)
+            # bb_width_predictions = self.predict_linear_values(widths)
+            # bb_height_predictions = self.predict_linear_values(heights)
+            bb_width_predictions = [widths[-1]] * 3
+            bb_height_predictions = [heights[-1]] * 3
             bb_center_predictions = self.predict_bb_centers(frame, tracker, center_xs, center_ys, correction_vectors, num_of_past_bbs)
 
             bb_preds = self.center_w_h_to_bbs(bb_center_predictions, bb_width_predictions, bb_height_predictions)
-            #split predictions into separate lists
-
+            # split predictions into separate lists
 
             # Draw prediction bbs for next: 1, 3, 10 frames
             for bb in bb_preds:
@@ -39,11 +40,9 @@ class TrajectoryModel:
             for center in bb_center_predictions:
                 draw_arrow_from_xy(frame, center_xs[-1], center_ys[-1], center[0], center[1])
 
-
             all_bb_predictions.append(bb_preds)
             for i, bb in enumerate(bb_preds):
                 all_bb_predictions_split[i].append(bb)
-
 
         return all_bb_predictions, all_bb_predictions_split, frame
 
@@ -51,8 +50,7 @@ class TrajectoryModel:
         direction = 1 if center_xs[-1] - center_xs[0] > 0 else -1
         dist = np.sqrt((center_xs[-1] - center_xs[0]) ** 2 + (center_ys[-1] - center_ys[0]) ** 2) / num_of_past_bbs
         m, b = np.polyfit(center_xs, center_ys, 1)
-        pred_centers = [self.predict_next_bb_center(frame, tracker, center_xs, center_ys, correction_vectors, m, dist, direction, step) for step in
-                        self.predict_steps]
+        pred_centers = [self.predict_next_bb_center(frame, tracker, center_xs, center_ys, correction_vectors, m, dist, direction, step) for step in self.predict_steps]
 
         # print('Raw pred:', pred_x, pred_y, '\tCorrection vector:', correction_vector, '\tCorrected pred:', corrected_pred_x, corrected_pred_y)
         # cv2.arrowedLine(frame, (int(center_xs[-1]), int(center_ys[-1])), (int(corrected_pred_x), int(corrected_pred_y)), (0, 255, 255), 2,
@@ -91,5 +89,5 @@ class TrajectoryModel:
         return m * x + b
 
     def center_w_h_to_bbs(self, centers, widths, heights):
-        return  [(center[0]-width/2, center[1]-height/2, center[0]+width/2, center[1]+height/2) for center, width, height in zip(centers, widths, heights)]
-
+        return [(center[0] - width / 2, center[1] - height / 2, center[0] + width / 2, center[1] + height / 2) for center, width, height in
+                zip(centers, widths, heights)]

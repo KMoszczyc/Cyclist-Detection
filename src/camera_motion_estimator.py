@@ -79,7 +79,7 @@ class CameraMotionEstimator:
 
         for line in lines:
             [[x1, y1, x2, y2]] = line
-            m = (y2 - y1) / (x2 - x1) if x1 != x2 else 100000000
+            m = (y2 - y1) / (x2 - x1) if x1 != x2 else 100000
             c = y2 - m * x2
             theta = math.degrees(math.atan(m))
             if REJECT_DEGREE_TH <= abs(theta) <= 90 - REJECT_DEGREE_TH:
