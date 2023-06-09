@@ -1,3 +1,7 @@
+import sys
+
+sys.path.insert(0, './yolov7')
+
 # How close their appearance is. Here we’ll compare the vectors produced by the re-id network for both images.
 # How close their centers are on the consecutive frames. Given a decent framerate of the video, we can assume that the person cannot suddenly move from one corner of the image to another – which means that the centers of the detections of the same person on consecutive frames must be close to each other.
 # The sizes of the boxes. Again, the sizes should be consistent for consecutive frames.
@@ -9,11 +13,14 @@ from PIL import Image
 from src.sort_tracking import *
 import numpy as np
 from src.load_utils import get_kitti_tracking_img_filepaths, get_kitti_tracking_labels, get_frame_labels, draw_arrow_from_angle, vector_to_angle, \
-    draw_example_arrows, get_center_x, get_center_y, transform_bb, m_to_xy, draw_arrow_from_m
+    draw_example_arrows, get_center_x, get_center_y, transform_bb, m_to_xy, draw_arrow_from_m, get_kitti_tracking_labels_multiple_recordings, \
+    merge_kitti_tracking_labels_multiple_recordings, get_kitti_tracking_labels_with_img_names
 from src.metrics import Metrics
 from src.camera_motion_estimator import CameraMotionEstimator
 from src.trajectory_model import TrajectoryModel
 from mean_average_precision import MetricBuilder
+
+from src.yolov7.single_inference_yolov7 import SingleInference_YOLOV7
 
 
 # from deep_sort import nn_matching
@@ -146,7 +153,6 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path, conf
 
         sort_end_time = time.time()
 
-
         print(bbs)
         print(tracked_bbs)
         # without tracking
@@ -202,90 +208,130 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path, conf
 
 
 # --------------------------------------------------------------------
-def predict_video_from_frames_yolov4(src_frames_dir, src_labels_dir, recording_num, output_video_path, weights_path, config_path):
-    net = cv2.dnn.readNetFromDarknet(config_path, weights_path)
-    net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
-    net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, weights_path, config_path, model_type, conf_threshold=0.4, nmsThreshold=0.4, show_frames=True):
+    """
 
-    model = cv2.dnn_DetectionModel(net)
-    model.setInputParams(scale=1 / 255, size=(416, 416), swapRB=True)
+    :param src_frames_dir: path to images
+    :param src_labels_dir: path to labels
+    :param recording_nums: numbers of the kitti recording ['0000' to '0020']
+    :param output_video_path:
+    :param weights_path: path to the weights
+    :param config_path: path to the yolo config (applies only to yolov4)
+    :param model: yolov4 or volov7
+    :return:
+    """
+    print('-----------------------','conf_threshold:',conf_threshold,'----------------------')
 
-    img_filepaths = get_kitti_tracking_img_filepaths(src_frames_dir, recording_num)
+    if model_type == 'yolov4':
+        print('Using YOLO v4')
+        net = cv2.dnn.readNetFromDarknet(config_path, weights_path)
+        net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+        net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+        yolov4_model = cv2.dnn_DetectionModel(net)
+        yolov4_model.setInputParams(scale=1 / 255, size=(416, 416), swapRB=True)
+    else:  # yolov7
+        print('Using YOLO v7')
+        yolov7_model = SingleInference_YOLOV7(img_size=640, weights_path=weights_path, device_i='0')
 
-    img1 = cv2.imread(img_filepaths[0])
-    width = int(img1.shape[1])  # float `width`
-    height = int(img1.shape[0])
-    fps = 30
+    # Write to .mp4
+    # img1 = cv2.imread(img_filepaths[0])
+    # width = int(img1.shape[1])  # float `width`
+    # height = int(img1.shape[0])
+    # fps = 30
+    #
+    # print(width, height, fps)
+    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    # out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
-    print(width, height, fps)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+    img_filenames = os.listdir(src_frames_dir)
+    img_filenames_list = [[filename for filename in img_filenames if filename.split('_')[0] == recording_num] for recording_num in recording_nums]
+    print('img_filenames_list', img_filenames_list)
 
-    labels = get_kitti_tracking_labels(src_labels_dir, recording_num)
-    mot_tracker = Sort(max_age=5,
-                       min_hits=3,
-                       iou_threshold=0.3)
-    trajectory_model = TrajectoryModel()
-    camera_motion_estimator = CameraMotionEstimator(img_filepaths, width, height)
-    metrics = Metrics(labels)
+    num_of_frames_list = [len(get_kitti_tracking_img_filepaths(src_frames_dir, recording_num)) for recording_num in recording_nums]
+    num_of_frames = sum(num_of_frames_list)
 
-    for f in img_filepaths:
-        # time.sleep(0.05)
-        frame = cv2.imread(f)
+    labels_list = [get_kitti_tracking_labels_with_img_names(src_labels_dir, src_frames_dir, recording_num) for recording_num in recording_nums]
+    merged_labels, merged_image_names = merge_kitti_tracking_labels_multiple_recordings(labels_list, img_filenames_list, num_of_frames_list)
 
-        # Cyclist detection with Yolo
-        start_time = time.time()
-        classIds, scores, boxes = model.detect(frame, confThreshold=0.5, nmsThreshold=0.4)
-        yolo_end_time = time.time()
+    print(merged_labels[:10])
+    print(merged_image_names)
 
-        # Cyclist tracking with Sort
-        bbs = convert_yolov4_bb(classIds, scores, boxes)
-        detections = bbs if len(bbs) > 0 else np.empty((0, 5))
-        tracked_bbs = mot_tracker.update(detections)
-        tracking_end_time = time.time()
+    print('Frame counts:', num_of_frames, num_of_frames_list)
+    metrics = Metrics(merged_labels, merged_image_names, num_of_frames)
 
-        # Display raw BBs
-        for bb in bbs:
-            cv2.rectangle(frame, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])), (0, 255, 0), 1)  # Green
+    for recording_num in recording_nums:
+        img_filepaths = get_kitti_tracking_img_filepaths(src_frames_dir, recording_num)
 
-        # Display tracked BBs
-        for bb in tracked_bbs:
-            cv2.rectangle(frame, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])), (255, 0, 0), 2)  # Blue
-            draw_text(frame, f"Cyclist: {int(bb[4])}", (int(bb[0]), int(bb[1])))
+        img1 = cv2.imread(img_filepaths[0])
+        width, height = int(img1.shape[1]),  int(img1.shape[0])
 
-        # Draw validation arrows (ground truth)
-        frame_labels = get_frame_labels(labels, metrics.frame_counter)
-        # if frame_labels: print('Frame id:', metrics.frame_counter, '\tLabel id:', frame_labels[0]['frame'])
-        for label in frame_labels:
-            # print(label['bb_angle'])
-            x1 = (label['right'] + label['left']) / 2
-            y1 = (label['top'] + label['bottom']) / 2
-            draw_arrow_from_angle(frame, x1, y1, label['bb_angle'], 30, (255, 0, 0))  # Blue
+        mot_tracker = Sort(max_age=5,
+                           min_hits=3,
+                           iou_threshold=0.3)
+        trajectory_model = TrajectoryModel()
+        camera_motion_estimator = CameraMotionEstimator(img_filepaths, width, height)
 
-        # to show how radians are translated to arrows
-        draw_example_arrows(frame)
+        for f in img_filepaths:
+            frame = cv2.imread(f)
 
-        # Get vectors estimating shift for each tracked object on the frame due to camera motion
-        frame, correction_vectors = camera_motion_estimator.update(frame, tracked_bbs)
-        camera_motion_estimation_end_time = time.time()
+            # Cyclist detection with Yolo
+            start_time = time.time()
+            if model_type == 'yolov4':
+                classIds, scores, boxes = yolov4_model.detect(frame, confThreshold=conf_threshold, nmsThreshold=nmsThreshold)
+                bbs = convert_yolov4_bb(classIds, scores, boxes)
+            else:
+                bbs = yolov7_model.detect(frame, conf_thres=conf_threshold, iou_thres=0.5)
+            yolo_end_time = time.time()
 
-        # Predict Cyclist Trajectory
-        predictions, predictions_split, frame = trajectory_model.predict_trajectory(mot_tracker, correction_vectors, frame)
-        trajectory_prediction_end_time = time.time()
+            # Cyclist tracking with Sort
+            detections = bbs if len(bbs) > 0 else np.empty((0, 5))
+            tracked_bbs = mot_tracker.update(detections)
+            tracking_end_time = time.time()
 
-        metrics.update(detections, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time, trajectory_prediction_end_time)
+            # Display raw BBs
+            for bb in bbs:
+                cv2.rectangle(frame, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])), (0, 255, 0), 1)  # Green
 
-        # Save to mp4
-        out.write(frame)
-        cv2.imshow('frame', frame)
-        # c = cv2.waitKey(1) # video
-        c = cv2.waitKey(0)  # frame  by frame
-        if c & 0xFF == ord('q'):
-            break
+            # Display tracked BBs
+            for bb in tracked_bbs:
+                cv2.rectangle(frame, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])), (255, 0, 0), 2)  # Blue
+                draw_text(frame, f"Cyclist: {int(bb[4])}", (int(bb[0]), int(bb[1])))
 
-    metrics.calculate_map_for_step(1)
+            # Draw validation arrows (ground truth)
+            frame_labels = get_frame_labels(merged_labels, metrics.total_frame_counter)
+            for label in frame_labels:
+                # print(label['bb_angle'])
+                x1 = (label['right'] + label['left']) / 2
+                y1 = (label['top'] + label['bottom']) / 2
+                draw_arrow_from_angle(frame, x1, y1, label['bb_angle'], 30, (255, 0, 0))  # Blue
+
+            # to show how radians are translated to arrows
+            draw_example_arrows(frame)
+
+            # Get vectors estimating shift for each tracked object on the frame due to camera motion
+            # frame, correction_vectors = camera_motion_estimator.update(frame, tracked_bbs)
+            camera_motion_estimation_end_time = time.time()
+
+            # Predict Cyclist Trajectory
+            # predictions, predictions_split, frame = trajectory_model.predict_trajectory(mot_tracker, correction_vectors, frame)
+            trajectory_prediction_end_time = time.time()
+            predictions_split = []
+            # Update metrics (mAP, timers etc)
+            metrics.update(detections, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
+                           trajectory_prediction_end_time)
+
+            # Save to mp4
+            # out.write(frame)
+            if show_frames:
+                cv2.imshow('frame', frame)
+                c = cv2.waitKey(1)  # video
+                # c = cv2.waitKey(0)  # frame  by frame
+                if c & 0xFF == ord('q'):
+                    break
+
     # out.release()
     cv2.destroyAllWindows()
+    return [metrics.final_map50, metrics.final_map50_95, metrics.final_precision, metrics.final_recall], metrics.coco_summary
 
 
 def predict_trajectory(mot_tracker, correction_vectors, frame):
@@ -433,6 +479,3 @@ def convert_yolov5_bb(df_bb, width, height):
 
 def get_center_pt(bb):
     return ((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2)
-
-
-

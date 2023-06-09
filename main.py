@@ -1,14 +1,17 @@
+import sys
+sys.path.insert(0, './src/yolov7')
 def warn(*args, **kwargs):
     pass
 import warnings
 warnings.warn = warn
 
 from src.load_utils import *
-from src.predict import predict_img, predict_video_yolov4, predict_video_from_frames_yolov4
+from src.predict import predict_img, predict_video_yolov4, predict_video_from_frames_yolo
 from  src.camera_motion_estimation import estimate_motion_mp4, estimate_motion_from_frames, estimate_motion_from_frames_sparse, calculate_optical_flow
 import os
 import cv2
 import random
+from src.test import test_yolov4_confidence_thresholds, test_yolov4_nms_thresholds, test_yolov7_confidence_thresholds
 
 # KITTI TRACKING RAW img widths and heights - {1224, 1241, 1242, 1238} {376, 370, 374, 375}
 TRAIN_IMAGES_DIR = 'data_raw/images/training/'
@@ -41,8 +44,8 @@ if __name__ == '__main__':
     # display_random_img('data/data_raw_kitti/images/training_raw/', 'data/data_raw_kitti/labels/training_raw/', is_yolo=False, is_raw_kitti=True)
     #
 
-    # count_cyclists_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
-    # count_cyclists_per_recording_yolo('data/kitti_tracking_data/merged_not_occluded_filtered_cut_416')
+    count_cyclists_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
+    count_cyclists_per_recording_yolo('data/kitti_tracking_data/merged_not_occluded_filtered_cut_416')
 
     # transform_tracking_calib_files('data/kitti_tracking_data/raw/data_tracking_calib/training/calib','data/kitti_tracking_data/raw/calib_formatted')
     # display_tracking_img('data/kitti_tracking_data/merged_raw', 'data/kitti_tracking_data/raw/data_tracking_label_2/training', '0020')
@@ -57,7 +60,11 @@ if __name__ == '__main__':
 
     input_video_path = 'data/test_videos/bikes2.mp4'
     output_video_path = 'results/results_videos/yolov4_sort.mp4'
-    weights_path = 'model/yolov4_weights/yolov4-obj_best.weights'
+    yolov4_weights_path = 'model/yolov4_weights/yolov4-obj_best.weights'
+    # yolov7_weights_path = 'model/yolov7/yolov7_kitti640_best.pt' # older
+    yolov7_weights_path = 'model/yolov7/yolov7_best_07062023.pt' # latest
+
+
     config_path = 'model/yolov4-configs/yolov4-obj.cfg'
 
     # predict_video_yolov4(input_video_path, output_video_path, weights_path, config_path)
@@ -65,9 +72,10 @@ if __name__ == '__main__':
     src_frames_dir = 'data/kitti_tracking_data/merged_raw'
     src_labels_dir = 'data/kitti_tracking_data/raw/data_tracking_label_2/training'
 
-    recording_num = '0013'
-    output_video_path = f'results/results_videos/yolov4_sort_kitti{recording_num}.mp4'
-    predict_video_from_frames_yolov4(src_frames_dir,src_labels_dir,recording_num, output_video_path, weights_path, config_path)
+    recording_nums = ['0013', '0019']
+    output_video_path = f'results/results_videos/yolov4_sort_kitti_valid.mp4'
+    # predict_video_from_frames_yolo(src_frames_dir,src_labels_dir,recording_nums, output_video_path, yolov4_weights_path, config_path, model_type='yolov4')
+    # predict_video_from_frames_yolo(src_frames_dir,src_labels_dir,recording_nums, output_video_path, yolov7_weights_path, config_path, model_type='yolov7')
 
     # predict_video(input_video_path, output_video_path)
     # predict_video_yolov4_deepsort(input_video_path, output_video_path)
@@ -93,10 +101,18 @@ if __name__ == '__main__':
 
 
     # Occlutions 0 and 1 are fine, 2 and 3 are too big (remove from training data)
-    # display_kitti_tracking_occluded(src_frames_dir, src_labels_dir, '0020', 2)
+    # display_kitti_tracking_occluded(src_frames_dir, src_labels_dir, '0015', 1)
 
     # filter_images_by_labels(src_frames_dir, 'data/kitti_tracking_data/merged', 'data/kitti_tracking_data/merged')
 
     test_recording_nums = ['0013', '0019'] #0013 and 0019 are better for testing as there is lots of movement. 0015 will be better used for yolo training
     # filter_recordings_from_merged_data('data/kitti_tracking_data/merged_not_occluded_raw', 'data/kitti_tracking_data/merged_not_occluded_filtered_raw', test_recording_nums)
+
+    # test_yolov4_confidence_thresholds()
+    # test_yolov4_nms_thresholds()
+    test_yolov7_confidence_thresholds()
+
+    # parse_yolov7_test_map_output('results/yolov7_colab_map_tests/test_results_yolov7_conf0.001.txt')
+    # parse_yolov7_test_map_output('results/yolov7_colab_map_tests/test_results_yolov7_conf0.4.txt')
+    # parse_yolov7_test_map_output('results/yolov7_colab_map_tests/yolov7_conf_th_test.txt')
 

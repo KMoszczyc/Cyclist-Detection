@@ -1,0 +1,530 @@
+/content/yolov7
+['init.pt', 'epoch_000.pt', 'epoch_009.pt', 'epoch_019.pt', 'epoch_029.pt', 'epoch_039.pt', 'epoch_049.pt', 'epoch_059.pt', 'epoch_069.pt', 'epoch_079.pt', 'epoch_089.pt', 'epoch_099.pt', 'epoch_109.pt', 'epoch_119.pt', 'epoch_129.pt', 'epoch_139.pt', 'epoch_149.pt', 'epoch_159.pt', 'epoch_169.pt', 'epoch_179.pt', 'epoch_189.pt', 'epoch_195.pt', 'epoch_196.pt', 'epoch_197.pt', 'epoch_198.pt', 'epoch_199.pt', 'last.pt', 'best.pt']
+--------------- init.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/init.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/init.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='init.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Traceback (most recent call last):
+  File "/content/yolov7/test.py", line 319, in <module>
+    test(opt.data,
+  File "/content/yolov7/test.py", line 58, in test
+    model = attempt_load(weights, map_location=device)  # load FP32 model
+  File "/content/yolov7/models/experimental.py", line 253, in attempt_load
+    model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().fuse().eval())  # FP32 model
+  File "/usr/local/lib/python3.10/dist-packages/torch/nn/modules/module.py", line 1614, in __getattr__
+    raise AttributeError("'{}' object has no attribute '{}'".format(
+AttributeError: 'Model' object has no attribute 'get'
+--------------- epoch_000.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_000.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_000.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_000.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:07<00:00,  5.69it/s]
+                 all        1399         545      0.0191      0.0917     0.00498      0.0012
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_000.pt
+--------------- epoch_009.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_009.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_009.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_009.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  6.84it/s]
+                 all        1399         545       0.228       0.266        0.14      0.0539
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_009.pt
+--------------- epoch_019.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_019.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_019.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_019.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.03it/s]
+                 all        1399         545       0.335       0.334       0.233       0.099
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_019.pt
+--------------- epoch_029.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_029.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_029.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_029.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  6.85it/s]
+                 all        1399         545       0.319         0.3        0.23      0.0941
+Speed: 1.4/1.0/2.4 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_029.pt
+--------------- epoch_039.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_039.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_039.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_039.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  6.99it/s]
+                 all        1399         545       0.482       0.382       0.325       0.164
+Speed: 1.6/1.0/2.6 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_039.pt
+--------------- epoch_049.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_049.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_049.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_049.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.06it/s]
+                 all        1399         545       0.525       0.385       0.394       0.195
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_049.pt
+--------------- epoch_059.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_059.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_059.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_059.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.12it/s]
+                 all        1399         545       0.487       0.422       0.421       0.224
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_059.pt
+--------------- epoch_069.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_069.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_069.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_069.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.07it/s]
+                 all        1399         545       0.461       0.409       0.405       0.223
+Speed: 1.5/1.0/2.4 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_069.pt
+--------------- epoch_079.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_079.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_079.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_079.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.06it/s]
+                 all        1399         545       0.548       0.385        0.42       0.217
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_079.pt
+--------------- epoch_089.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_089.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_089.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_089.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.09it/s]
+                 all        1399         545       0.648       0.372       0.464       0.252
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_089.pt
+--------------- epoch_099.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_099.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_099.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_099.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  6.98it/s]
+                 all        1399         545       0.592       0.428       0.487       0.274
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_099.pt
+--------------- epoch_109.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_109.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_109.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_109.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.15it/s]
+                 all        1399         545       0.539       0.394       0.418       0.235
+Speed: 1.4/0.9/2.4 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_109.pt
+--------------- epoch_119.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_119.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_119.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_119.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.07it/s]
+                 all        1399         545       0.525       0.434       0.443       0.254
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_119.pt
+--------------- epoch_129.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_129.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_129.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_129.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.14it/s]
+                 all        1399         545       0.561       0.464        0.49       0.284
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_129.pt
+--------------- epoch_139.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_139.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_139.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_139.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.06it/s]
+                 all        1399         545       0.592       0.437       0.478       0.276
+Speed: 1.5/0.9/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_139.pt
+--------------- epoch_149.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_149.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_149.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_149.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.06it/s]
+                 all        1399         545       0.676       0.409       0.496       0.286
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_149.pt
+--------------- epoch_159.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_159.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_159.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_159.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.08it/s]
+                 all        1399         545       0.521       0.515       0.501       0.289
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_159.pt
+--------------- epoch_169.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_169.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_169.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_169.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.21it/s]
+                 all        1399         545       0.627       0.447       0.501       0.293
+Speed: 1.6/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_169.pt
+--------------- epoch_179.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_179.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_179.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_179.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.10it/s]
+                 all        1399         545       0.614       0.453       0.506       0.295
+Speed: 1.5/0.9/2.4 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_179.pt
+--------------- epoch_189.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_189.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_189.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_189.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.27it/s]
+                 all        1399         545       0.619       0.451       0.507       0.296
+Speed: 1.5/0.9/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_189.pt
+--------------- epoch_195.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_195.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_195.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_195.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.02it/s]
+                 all        1399         545       0.618       0.455       0.507       0.296
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_195.pt
+--------------- epoch_196.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_196.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_196.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_196.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.20it/s]
+                 all        1399         545       0.616       0.457       0.508       0.297
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_196.pt
+--------------- epoch_197.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_197.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_197.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_197.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  6.95it/s]
+                 all        1399         545       0.615       0.457       0.507       0.295
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_197.pt
+--------------- epoch_198.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_198.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_198.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_198.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.03it/s]
+                 all        1399         545       0.632       0.447       0.507       0.295
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_198.pt
+--------------- epoch_199.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_199.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/epoch_199.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='epoch_199.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.08it/s]
+                 all        1399         545       0.624       0.451       0.507       0.296
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/epoch_199.pt
+--------------- last.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/last.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/last.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='last.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.15it/s]
+                 all        1399         545       0.624       0.451       0.507       0.296
+Speed: 1.5/1.0/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/last.pt
+--------------- best.pt ----------------
+/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/best.pt
+Namespace(weights=['/content/gdrive/MyDrive/magisterka/YOLOV7/yolov7-custom-07.06.2023v22/weights/best.pt'], data='/content/gdrive/MyDrive/magisterka/YOLOV7/test_data.yaml', batch_size=32, img_size=640, conf_thres=0.001, iou_thres=0.5, task='test', device='0', single_cls=False, augment=False, verbose=False, save_txt=False, save_hybrid=False, save_conf=False, save_json=False, project='/content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0', name='best.pt', exist_ok=False, no_trace=False, v5_metric=False)
+YOLOR 🚀 v0.1-126-g84932d7 torch 2.0.1+cu118 CUDA:0 (NVIDIA A100-SXM4-40GB, 40513.5625MB)
+
+Fusing layers... 
+IDetect.fuse
+Model Summary: 362 layers, 70782444 parameters, 0 gradients
+ Convert model to Traced-model... 
+ traced_script_module saved! 
+ model is traced! 
+
+/usr/local/lib/python3.10/dist-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+test: Scanning '/content/gdrive/MyDrive/magisterka/YOLOV7/test.cache' images and labels... 1399 found, 0 missing, 1043 empty, 0 corrupted: 100% 1399/1399 [00:00<?, ?it/s]
+               Class      Images      Labels           P           R      mAP@.5  mAP@.5:.95: 100% 44/44 [00:06<00:00,  7.12it/s]
+                 all        1399         545       0.615       0.457       0.507       0.295
+Speed: 1.5/0.9/2.5 ms inference/NMS/total per 640x640 image at batch-size 32
+Results saved to /content/gdrive/MyDrive/magisterka/YOLOV7/test_weights_conf0/best.pt

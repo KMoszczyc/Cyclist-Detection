@@ -53,6 +53,8 @@
 # BB == BBX == BBOX == Bounding Box
 
 from collections import Counter
+
+import pandas as pd
 from PIL import Image
 import os
 import cv2
@@ -829,6 +831,7 @@ def filter_recordings_from_merged_data(src_dir, dst_dir, test_recording_nums):
     for label_filename in label_filenames:
         shutil.copy(os.path.join(src_dir, label_filename), os.path.join(dst_dir, label_filename))
 
+
 def display_kitti_tracking_occluded(img_src_dir, labels_src_dir, recording_num, occlusion):
     labels = get_kitti_tracking_labels(labels_src_dir, recording_num)
     occlusions = [0, 1, 2, 3]
@@ -848,7 +851,6 @@ def display_kitti_tracking_occluded(img_src_dir, labels_src_dir, recording_num, 
         cv2.waitKey(0)
 
 
-
 def get_kitti_tracking_labels(labels_src_dir, recording_num):
     label_filenames = os.listdir(labels_src_dir)
     recording_label_filename = [f for f in label_filenames if f.split('.txt')[0] == recording_num][0]
@@ -860,6 +862,26 @@ def get_kitti_tracking_labels(labels_src_dir, recording_num):
 
     return filtered_labels
 
+
+def get_kitti_tracking_labels_with_img_names(labels_src_dir, img_src_dir, recording_num):
+    """Get kitti labels but with images as it's necessary to run COCO mAP repo"""
+    label_filenames = os.listdir(labels_src_dir)
+    recording_label_filename = [f for f in label_filenames if f.split('.txt')[0] == recording_num][0]
+    labels = read_raw_kitti_tracking_labels(os.path.join(labels_src_dir, recording_label_filename))
+    filtered_labels = [label for label in labels if label['type'] == 'Cyclist']
+
+    # Add image names
+    filenames = os.listdir(img_src_dir)
+    img_filenames = [f.split('.')[0] for f in filenames if ('.jpg' in f or '.png' in f) and f.split('_')[0] == recording_num]
+    img_filenames_dict = {int(f.split('_')[1]): f for f in img_filenames} # id - frame id, value - filename
+
+    for label in filtered_labels:
+        label['image_name'] = img_filenames_dict[int(label['frame'])]
+        label['bb_angle'] = calculate_angle_from_bb(label, recording_num)
+
+    return filtered_labels
+
+
 def get_kitti_tracking_not_occluded_labels(labels_src_dir, recording_num):
     """Get kitti tracking labels, but with occlusion of 0 and 1, remove objects with occlusion of 2 and 3"""
 
@@ -867,6 +889,61 @@ def get_kitti_tracking_not_occluded_labels(labels_src_dir, recording_num):
     allowed_occlusions = [0, 1]
     not_occluded_labels = [label for label in labels if int(label['occluded']) in allowed_occlusions]
     return not_occluded_labels
+
+
+def get_kitti_tracking_labels_multiple_recordings(labels_src_dir, recording_nums):
+    """Merge kitti labels from multiple recordings and add frame ids accordingly. Rememember to put images in the same sequence"""
+    labels = []
+    frame_count = 0
+    for recording_num in recording_nums:
+        current_labels = get_kitti_tracking_labels(labels_src_dir, recording_num)
+        if frame_count > 0:
+            current_labels = [{**label, 'frame': str(int(label['frame']) + frame_count)} for label in current_labels]
+
+        frame_ids = [label['frame'] for label in current_labels]
+        print('frame ids', frame_count, frame_ids)
+
+        labels += current_labels
+        frame_count += len(current_labels)
+
+    frame_ids = [label['frame'] for label in labels]
+    print('frame ids', frame_ids)
+    return labels
+
+
+def merge_kitti_tracking_labels_multiple_recordings(labels_list, img_filenames_list, num_of_frames_list):
+    """
+    Merge labels from multiple recordings into one, sequential dataset. Increment labels adequately.
+    :param labels_list: A list of labels from multiple recordings - [[labels from 0013], [labels from 0010], etc]
+    :param num_of_frames_list: a list wiyj number of frames for each recording
+    :return: [] - merged labels
+    """
+
+    img_filenames_processed_list = [[f.split('.')[0] for f in img_filenames if ('.jpg' in f or '.png' in f)] for img_filenames in img_filenames_list]
+
+    merged_labels = []
+    merged_image_names = {}
+    count = 0
+    num_of_recordings = len(labels_list)
+    for i in range(num_of_recordings):
+        if count > 0:
+            recording_labels = [{**label, 'frame': str(int(label['frame']) + num_of_frames_list[i - 1])} for label in labels_list[i]]
+            image_names = {int(f.split('_')[1]) + num_of_frames_list[i - 1]: f for f in img_filenames_processed_list[i]}
+        else:
+            recording_labels = labels_list[i]
+            image_names= {int(f.split('_')[1]): f for f in img_filenames_processed_list[i]}
+
+        merged_labels += recording_labels
+        merged_image_names.update(image_names)
+
+        count += 1
+
+    return merged_labels, merged_image_names
+
+def get_image_names_from_labels(labels):
+    """Mind that the labels need to have image_names already!"""
+    return {int(label['frame']): label['image_name'] for label in labels}
+
 
 def transform_tracking_calib_files(src_calib_dir, dst_calib_dir):
     calib_filenames = os.listdir(src_calib_dir)
@@ -932,21 +1009,22 @@ def count_cyclists_per_recording(labels_src_dir):
     print('Images with Cyclists sum:', sum(imgs_with_cyclists))
     print('-------------------------------')
 
+
 def count_cyclists_per_recording_yolo(labels_src_dir):
     label_filenames = [filename for filename in os.listdir(labels_src_dir) if filename.endswith('.txt')]
     imgs_num = len(label_filenames)
-    imgs_with_cyclists = [0]*21
-    cyclist_detections = [0]*21
+    imgs_with_cyclists = [0] * 21
+    cyclist_detections = [0] * 21
     for filename in label_filenames:
         recording_num = filename.split('_')[0]
         recording_num_int = int(recording_num)
         bbs = read_bounding_boxes(os.path.join(labels_src_dir, filename))
         num_of_cyclists = len(bbs)
 
-        if num_of_cyclists>0:
+        if num_of_cyclists > 0:
             imgs_with_cyclists[recording_num_int] += 1
 
-        cyclist_detections[recording_num_int] +=num_of_cyclists
+        cyclist_detections[recording_num_int] += num_of_cyclists
 
     print('-------------------------------')
     print('Stats per recoding (21 recordings, from 0000 to 0020)')
@@ -1038,3 +1116,28 @@ def calculate_raw_tracking_kitti_img_shapes(src_frames_dir):
         img_heights.add(img.shape[0])
 
     print(img_widths, img_heights)
+
+
+def parse_yolov7_test_map_output(src_path):
+    with open(src_path) as f:
+        df = pd.DataFrame(columns=['mAP50', 'map50_95', 'Precision', 'Recall'])
+        lines = f.read().splitlines()
+        results = {}
+        for i, line in enumerate(lines):
+            if '--------------- ' in line and 'init' not in line:
+                current_weights_name = line.split(' ')[1]
+                values_index = i + 15
+                print(line, current_weights_name)
+                if values_index < len(lines):
+                    values_raw = lines[values_index].split()
+                    values = [values_raw[5], values_raw[6], values_raw[3], values_raw[4]]
+                    results[current_weights_name] = values
+                    df.loc[current_weights_name] = values
+        print(df.head(30))
+        filename = os.path.basename(src_path)
+        dirname = os.path.dirname(src_path)
+
+        new_filename = filename.split('.txt')[0] + '_parsed.txt'
+        dst_path = os.path.join(dirname, new_filename)
+        print()
+        df.to_csv(dst_path)
