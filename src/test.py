@@ -49,7 +49,7 @@ def test_yolov7_confidence_thresholds():
     # conf_thresholds = [0.5]
 
 
-    df_default = pd.DataFrame(columns=['mAP50', 'mAP50_95', 'Precision', 'Recall'], index=conf_thresholds)
+    df_default = pd.DataFrame(columns=['mAP50', 'mAP50_95', 'Precision', 'Recall', 'F1_score'], index=conf_thresholds)
     df_coco = pd.DataFrame(columns=['AP', 'AP50', 'AP75', 'APsmall', 'APmedium', 'APlarge', 'AR1', 'AR10', 'AR100', 'ARsmall', 'ARmedium', 'ARlarge'], index=conf_thresholds)
 
     for conf_threshold in conf_thresholds:

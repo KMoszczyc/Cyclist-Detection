@@ -314,8 +314,9 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
 
             # Predict Cyclist Trajectory
             # predictions, predictions_split, frame = trajectory_model.predict_trajectory(mot_tracker, correction_vectors, frame)
-            trajectory_prediction_end_time = time.time()
             predictions_split = []
+
+            trajectory_prediction_end_time = time.time()
             # Update metrics (mAP, timers etc)
             metrics.update(detections, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
                            trajectory_prediction_end_time)
@@ -331,7 +332,7 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
 
     # out.release()
     cv2.destroyAllWindows()
-    return [metrics.final_map50, metrics.final_map50_95, metrics.final_precision, metrics.final_recall], metrics.coco_summary
+    return metrics.default_metrics, metrics.coco_summary
 
 
 def predict_trajectory(mot_tracker, correction_vectors, frame):

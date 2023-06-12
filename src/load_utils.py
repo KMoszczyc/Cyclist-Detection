@@ -441,7 +441,6 @@ def coords_to_yolo_label(img_src, label_src, dst):
 
 def kitti_tracking_coords_to_yolo_label(img_src, label_src, label_dst):
     """
-    TODO: Convert Kitti tracking cartesian coords labels to yolov4 (both in txt format)
     Also remove occluded objects
     """
     create_dir(label_dst)
@@ -556,9 +555,14 @@ def count_img_sizes(directory):
     print(Counter(hs))
 
 
-def resize_images(src_dir, dst_dir, target_size=416, square_img=True):
+def resize_images(src_dir, dst_dir, target_size=416, square_img=True, cut_img_flag=False):
     """
-    Resize images (no need to adjust bounding boxes as they are in yolo format which handles that)
+
+    :param src_dir: src path to images and labels in .txt yolo format
+    :param dst_dir: dst path to resized images and labels in .txt yolo format
+    :param target_size:
+    :param square_img:
+    :return:
     """
 
     img_filenames = [filename for filename in os.listdir(src_dir) if filename.endswith('.jpg')]
@@ -576,9 +580,10 @@ def resize_images(src_dir, dst_dir, target_size=416, square_img=True):
             coord_bboxes = [yolo_to_coords(img.shape, bb[0], bb[1], bb[2], bb[3]) for bb in yolo_bboxes]
 
             # cut img so it's not so wide - 375 * 16/9 = 667
-            img, cut_bboxes = cut_img(img, 667, coord_bboxes)
+            if cut_img_flag:
+                img, coord_bboxes = cut_img(img, 667, coord_bboxes)
 
-            yolo_bboxes_sqr = [coords_to_yolo_sqr(img.shape, bb[0], bb[1], bb[2], bb[3]) for bb in cut_bboxes]
+            yolo_bboxes_sqr = [coords_to_yolo_sqr(img.shape, bb[0], bb[1], bb[2], bb[3]) for bb in coord_bboxes]
             write_yolo_bboxes(os.path.join(dst_dir, label_filename), yolo_bboxes_sqr)
         else:
             shutil.copy(os.path.join(src_dir, label_filename), os.path.join(dst_dir, label_filename))
@@ -656,7 +661,7 @@ def display_random_img(img_src_dir, label_src_dir, is_yolo=True, is_raw_kitti=Fa
 
 
 def write_yolo_bboxes(label_dst, yolo_bboxes):
-    with open(label_dst, 'w') as output:
+    with open(label_dst, 'a+') as output:
         for bb in yolo_bboxes:
             output.write(f"{0} {bb[0]} {bb[1]} {bb[2]} {bb[3]}\n")
 
@@ -851,6 +856,147 @@ def display_kitti_tracking_occluded(img_src_dir, labels_src_dir, recording_num, 
         cv2.waitKey(0)
 
 
+def display_kitti_tracking_truncated(img_src_dir, labels_src_dir, recording_num, truncation):
+    """Float from 0 (non-truncated) to 1 (truncated), where
+                   truncated refers to the object leaving image boundaries.
+ 	     Truncation 2 indicates an ignored object (in particular
+ 	     in the beginning or end of a track) introduced by manual
+ 	     labeling.
+     """
+    labels = get_kitti_tracking_labels(labels_src_dir, recording_num)
+    truncations = [0, 1, 2]
+    truncated_cyclists_counts = [len([label for label in labels if int(label['truncated']) == trunc]) for trunc in truncations]
+    print('truncations:', truncations)
+    print('truncated_cyclists_counts:', truncated_cyclists_counts)
+
+    occluded_labels = [label for label in labels if int(label['truncated']) == truncation]
+
+    for label in occluded_labels:
+        img_filename = f"{recording_num}_{str(label['frame']).zfill(6)}.jpg"
+        print(img_filename)
+        img_path = os.path.join(img_src_dir, img_filename)
+        img = cv2.imread(img_path)
+        cv2.rectangle(img, (int(label['left']), int(label['top'])), (int(label['right']), int(label['bottom'])), (255, 0, 0), 2)
+        cv2.imshow('img', img)
+        cv2.waitKey(0)
+
+
+def count_occluded_cyclist_per_recording(labels_src_dir):
+    print('---------------- occlusion count ----------------------')
+    print('Stats per recoding (21 recordings, from 0000 to 0020)')
+    recording_nums = [str(i).zfill(4) for i in range(21)]
+    occlusions = [0, 1, 2, 3]
+
+    imgs_with_cyclists = []
+    imgs_num = len(os.listdir('data/kitti_tracking_data/merged_raw_images'))
+    for occlusion in occlusions:
+        occluded_cyclist_detections = []
+        imgs_with_cyclists = []
+
+        for recording_num in recording_nums:
+            labels = get_kitti_tracking_labels(labels_src_dir, recording_num)
+            occluded_cyclists_labels = [label for label in labels if int(label['occluded']) == occlusion]
+
+            occluded_detections_num = len(occluded_cyclists_labels)
+            frames_num = len({label['frame'] for label in labels})
+
+            occluded_cyclist_detections.append(occluded_detections_num)
+            imgs_with_cyclists.append(frames_num)
+
+        print(f'Cyclist Detections num for occlusion [{occlusion}]:', occluded_cyclist_detections, '\t sum:', sum(occluded_cyclist_detections))
+
+    print('Overall number of all images', imgs_num)
+    print('Images with Cyclists:', imgs_with_cyclists, '\t sum:', sum(imgs_with_cyclists))
+    print('-------------------------------')
+
+
+def count_truncated_cyclist_per_recording(labels_src_dir):
+    print('---------------- truncation count ----------------------')
+
+    print('Stats per recoding (21 recordings, from 0000 to 0020)')
+    recording_nums = [str(i).zfill(4) for i in range(21)]
+    truncations = [0, 1]
+
+    imgs_with_cyclists = []
+    imgs_num = len(os.listdir('data/kitti_tracking_data/merged_raw_images'))
+    frames_to_remove = []
+    for truncation in truncations:
+        truncated_cyclist_detections = []
+        detections_on_frames_with_truncations = []
+        imgs_with_cyclists = []
+
+        for recording_num in recording_nums:
+            labels = get_kitti_tracking_labels(labels_src_dir, recording_num)
+            truncated_cyclists_labels = [label for label in labels if int(label['truncated']) == truncation]
+
+            trauncated_detections_num = len(truncated_cyclists_labels)
+            frames_num = len({label['frame'] for label in labels})
+
+            truncated_cyclist_detections.append(trauncated_detections_num)
+            imgs_with_cyclists.append(frames_num)
+
+            if trauncated_detections_num > 0:
+                current_frames_to_remove = set([label['frame'] for label in truncated_cyclists_labels])
+                frames_to_remove += current_frames_to_remove
+                remaining_labels = [label for label in labels if label['frame'] in frames_to_remove]
+                detections_on_frames_with_truncations.append(len(remaining_labels))
+            else:
+                detections_on_frames_with_truncations.append(0)
+
+        print(f'Cyclist Detections num for truncation [{truncation}]:', truncated_cyclist_detections, '\t sum:', sum(truncated_cyclist_detections))
+        print(f'Detections on frames with truncations [{truncation}]:', detections_on_frames_with_truncations, '\t sum:',
+              sum(detections_on_frames_with_truncations))
+        print('frames to remov')
+
+    print('Overall number of all images', imgs_num)
+    print('Images with Cyclists:', imgs_with_cyclists, '\t sum:', sum(imgs_with_cyclists))
+    print('-------------------------------')
+
+
+def get_kitti_tracking_not_frame_truncated_labels(labels_src_dir, img_src_dir):
+    """
+    Get kitti tracking labels without labels on frames with one or more truncated label
+    :param labels: a list of labels from all recordings and with image names
+    :param img_src_dir:
+    :return: a list of labels without labels from frames that contained one or more truncated cyclists
+    """
+    # example {'0000': ['12', '15'..], '0001': [..] ... 'recording_num': [frames to remove] }
+    frames_to_remove = {str(i).zfill(4): [] for i in range(21)}
+
+    labels = get_kitti_tracking_labels_with_img_names_merged(labels_src_dir, img_src_dir)
+    truncated_labels = [label for label in labels if int(label['truncated']) == 1]
+
+    # Get frames to remove
+    for label in truncated_labels:
+        frames_to_remove[label['recording_num']].append(label['frame'])
+
+    # Filter labels
+    filtered_labels = []
+    removed_labels = []
+    removed_labels_counts = []
+    for recording_num, frames in frames_to_remove.items():
+        filtered_labels += [label for label in labels if label['recording_num'] == recording_num and label['frame'] not in frames]
+
+        current_removed_labels = [label for label in labels if label['recording_num'] == recording_num and label['frame'] in frames]
+        removed_labels += current_removed_labels
+        removed_labels_counts.append(len(current_removed_labels))
+
+    # print('--------------- fitlered labels ---------------')
+    # for label in filtered_labels:
+    #     print((label['recording_num'], label['frame'], label['truncated']))
+    #
+    # print('--------------- removed labels ---------------')
+    # for label in removed_labels:
+    #     print((label['recording_num'], label['frame'], label['truncated']))
+
+    print('removed labels:', removed_labels_counts)
+    print('frames_to_remove:', len(frames_to_remove), frames_to_remove)
+    print('removed_labels:', len(removed_labels))
+    print('filtered_labels:', len(filtered_labels))
+
+    return filtered_labels
+
+
 def get_kitti_tracking_labels(labels_src_dir, recording_num):
     label_filenames = os.listdir(labels_src_dir)
     recording_label_filename = [f for f in label_filenames if f.split('.txt')[0] == recording_num][0]
@@ -864,7 +1010,7 @@ def get_kitti_tracking_labels(labels_src_dir, recording_num):
 
 
 def get_kitti_tracking_labels_with_img_names(labels_src_dir, img_src_dir, recording_num):
-    """Get kitti labels but with images as it's necessary to run COCO mAP repo"""
+    """Get kitti labels but with images as it's necessary to run COCO mAP repo, only basic filtering"""
     label_filenames = os.listdir(labels_src_dir)
     recording_label_filename = [f for f in label_filenames if f.split('.txt')[0] == recording_num][0]
     labels = read_raw_kitti_tracking_labels(os.path.join(labels_src_dir, recording_label_filename))
@@ -873,13 +1019,22 @@ def get_kitti_tracking_labels_with_img_names(labels_src_dir, img_src_dir, record
     # Add image names
     filenames = os.listdir(img_src_dir)
     img_filenames = [f.split('.')[0] for f in filenames if ('.jpg' in f or '.png' in f) and f.split('_')[0] == recording_num]
-    img_filenames_dict = {int(f.split('_')[1]): f for f in img_filenames} # id - frame id, value - filename
+    img_filenames_dict = {int(f.split('_')[1]): f for f in img_filenames}  # id - frame id, value - filename
 
     for label in filtered_labels:
         label['image_name'] = img_filenames_dict[int(label['frame'])]
         label['bb_angle'] = calculate_angle_from_bb(label, recording_num)
+        label['recording_num'] = recording_num
 
     return filtered_labels
+
+
+def get_kitti_tracking_labels_with_img_names_merged(labels_src_dir, img_src_dir):
+    recording_nums = [str(i).zfill(4) for i in range(21)]
+    labels = []
+    for recording_num in recording_nums:
+        labels += get_kitti_tracking_labels_with_img_names(labels_src_dir, img_src_dir, recording_num)
+    return labels
 
 
 def get_kitti_tracking_not_occluded_labels(labels_src_dir, recording_num):
@@ -891,8 +1046,13 @@ def get_kitti_tracking_not_occluded_labels(labels_src_dir, recording_num):
     return not_occluded_labels
 
 
+def filter_occluded_labels(labels):
+    allowed_occlusions = [0, 1]
+    return [label for label in labels if int(label['occluded']) in allowed_occlusions]
+
+
 def get_kitti_tracking_labels_multiple_recordings(labels_src_dir, recording_nums):
-    """Merge kitti labels from multiple recordings and add frame ids accordingly. Rememember to put images in the same sequence"""
+    """Merge kitti labels from multiple recordings and add frame ids accordingly. Rememember to put images in the same sequence. Use for testing the model."""
     labels = []
     frame_count = 0
     for recording_num in recording_nums:
@@ -931,7 +1091,7 @@ def merge_kitti_tracking_labels_multiple_recordings(labels_list, img_filenames_l
             image_names = {int(f.split('_')[1]) + num_of_frames_list[i - 1]: f for f in img_filenames_processed_list[i]}
         else:
             recording_labels = labels_list[i]
-            image_names= {int(f.split('_')[1]): f for f in img_filenames_processed_list[i]}
+            image_names = {int(f.split('_')[1]): f for f in img_filenames_processed_list[i]}
 
         merged_labels += recording_labels
         merged_image_names.update(image_names)
@@ -939,6 +1099,7 @@ def merge_kitti_tracking_labels_multiple_recordings(labels_list, img_filenames_l
         count += 1
 
     return merged_labels, merged_image_names
+
 
 def get_image_names_from_labels(labels):
     """Mind that the labels need to have image_names already!"""
@@ -989,7 +1150,7 @@ def count_cyclists_per_recording(labels_src_dir):
 
     imgs_with_cyclists = []
     cyclist_detections = []
-    imgs_num = len(os.listdir('data/kitti_tracking_data/merged_raw'))
+    imgs_num = len(os.listdir('data/kitti_tracking_data/merged_raw_images'))
     for f in label_filenames:
         labels = read_raw_kitti_tracking_labels(os.path.join(labels_src_dir, f))
 
@@ -1126,7 +1287,7 @@ def parse_yolov7_test_map_output(src_path):
         for i, line in enumerate(lines):
             if '--------------- ' in line and 'init' not in line:
                 current_weights_name = line.split(' ')[1]
-                values_index = i + 15
+                values_index = i + 16
                 print(line, current_weights_name)
                 if values_index < len(lines):
                     values_raw = lines[values_index].split()
@@ -1141,3 +1302,191 @@ def parse_yolov7_test_map_output(src_path):
         dst_path = os.path.join(dirname, new_filename)
         print()
         df.to_csv(dst_path)
+
+
+def filter_kitti_and_save(labels_src_dir, img_src_dir, dst_dir, test_recording_nums=['0012', '0013'], balance_dataset=True,
+                          truncation_filter='remove', occlusion_filter=True):
+    """
+     From already filtered labels filter according images, convert labels to yolo .txt files and save them to a dst_dir
+     TODO: fix uneven amount of data
+    :param labels: Already filtered labels
+    :param img_src_dir: path to img src dir
+    :param dst_dir: dst dir for labels converted to yolo format and filtered images
+    :param filtered_labels:
+    :param test_recording_nums:
+    :param balance_dataset: [True, False]
+    :param truncation_filter: ['remove', 'crop', 'none']
+        - 'remove' remove the entire frame
+        - 'cut' - make truncated objects black
+        - 'none' - keep the truncated objects
+    :param occlusion_filter: [True, False] - remove occluded labels with occlusion levels [2, 3] and keep [0, 1]
+    :return:
+    """
+    create_dir(dst_dir)
+
+    # for debugging purposes
+    training_label_nums = []
+    training_frame_nums = []
+
+    img_names = [filename.split('.jpg')[0] for filename in os.listdir(img_src_dir) if filename.endswith('.jpg')]
+    raw_labels = get_kitti_tracking_labels_with_img_names_merged(labels_src_dir, img_src_dir)
+    raw_labeled_img_names = set([label['image_name'] for label in raw_labels])
+
+    training_label_nums.append(len(raw_labels))
+    training_frame_nums.append(len(raw_labeled_img_names))
+
+
+    # Filter occluded labels
+    training_labels = [label for label in raw_labels if label['recording_num'] not in test_recording_nums]
+    training_label_nums.append(len(raw_labels))
+    training_frame_nums.append(len(raw_labeled_img_names))
+
+    if occlusion_filter:
+        training_labels = filter_occluded_labels(training_labels)
+        training_label_nums.append(len(training_labels))
+
+    # Remove frames with at least one truncated label
+    if truncation_filter == 'remove':
+        training_labels = [label for label in training_labels if int(label['truncated']) == 0]
+        training_label_nums.append(len(training_labels))
+
+    training_labeled_img_names = set([label['image_name'] for label in training_labels])
+    training_frame_nums.append(len(training_labeled_img_names))
+
+    non_labeled_img_names = list(set(img_names) - raw_labeled_img_names)
+    non_labeled_img_names = [label for label in non_labeled_img_names if
+                             label.split('_')[0] not in test_recording_nums]  # we dont want empty images from test dataset!
+
+    final_labels_num = 0
+    empty_truncated_frame_num = 0
+    # Save labeled imgs and labels
+    for img_name in training_labeled_img_names:
+        img_src_path = os.path.join(img_src_dir, img_name + '.jpg')
+        img_dst_path = os.path.join(dst_dir, img_name + '.jpg')
+        label_dst_path = os.path.join(dst_dir, img_name + '.txt')
+
+        frame_training_labels = [label for label in training_labels if label['image_name'] == img_name]
+        img = cv2.imread(img_src_path)
+
+        # Cut truncated labels from images, and remove the truncated labels from the training set
+        frame_truncated_bbs = [label_to_xyx2y2_int(label) for label in frame_training_labels if int(label['truncated']) == 1]
+        if truncation_filter == 'cut' and frame_truncated_bbs:
+            frame_training_labels = [label for label in frame_training_labels if int(label['truncated']) == 0]
+            print(img_name, frame_truncated_bbs)
+            img = cut_bbs_out_of_img(img, frame_truncated_bbs)
+
+        # If after cutting truncated objects, there is no more labels in the frame then count it
+        if not frame_training_labels:
+            print(img_name, len(frame_training_labels))
+            empty_truncated_frame_num += 1
+
+        # Save img and labels
+        yolo_bbs = [coords_to_yolo(img.shape, label['left'], label['top'], label['right'], label['bottom']) for label in frame_training_labels]
+        write_yolo_bboxes(label_dst_path, yolo_bbs)
+        # shutil.copy(img_src_path, img_dst_path)
+        cv2.imwrite(img_dst_path, img)
+
+        final_labels_num += len(frame_training_labels)
+
+    # If balance dataset is on, then make so that training dataset images contains 50% imgs with cyclist and 50% without them
+    num_of_labeled_imgs = len(training_labeled_img_names) - empty_truncated_frame_num
+    if balance_dataset:
+        training_non_labeled_img_names = random.sample(non_labeled_img_names, num_of_labeled_imgs)
+    else:
+        training_non_labeled_img_names = non_labeled_img_names
+
+    # Save empty images and empty label files to equalize labeled images, proportion 1:1
+    for img_name in training_non_labeled_img_names:
+        img_src_path = os.path.join(img_src_dir, img_name + '.jpg')
+        img_dst_path = os.path.join(dst_dir, img_name + '.jpg')
+        label_dst_path = os.path.join(dst_dir, img_name + '.txt')
+        open(label_dst_path, 'a').close()
+        shutil.copy(img_src_path, img_dst_path)
+
+    training_label_nums.append(final_labels_num)
+    training_frame_nums.append(num_of_labeled_imgs)
+
+    print('---------------- Save filtered kitti labels and images ------------------')
+    print('img_names', len(img_names))
+    print('raw_labeled_img_names', len(raw_labeled_img_names))
+    print('non_labeled_img_names', len(non_labeled_img_names))
+    print('num_of_labeled_imgs', num_of_labeled_imgs)
+    print('num_of_non_labeled_img_names', len(training_non_labeled_img_names))
+    print('empty_truncated_frame_num', empty_truncated_frame_num)
+    print('training_label_nums', training_label_nums)
+    print('training_frame_nums', training_frame_nums)
+
+
+def images_to_test_dataset(img_src_dir, labels_src_dir, dst_dir, recording_nums):
+    """
+    Create test dataset for yolo evaluation - raw images + yolo .txt files
+    :param img_src_dir: dir with all raw images
+    :param labels_src_dir: dir with raw kitti tracking labels
+    :param dst_dir: destination dir for test images and yolo labels
+    :param recording_nums: recording nums for test dataset
+    """
+    create_dir(dst_dir)
+
+    img_names = [filename.split('.jpg')[0] for filename in os.listdir(img_src_dir) if filename.endswith('.jpg')]
+    raw_labels = get_kitti_tracking_labels_with_img_names_merged(labels_src_dir, img_src_dir)
+    test_labels = [label for label in raw_labels if label['recording_num'] in recording_nums]
+    test_img_names = [img_name for img_name in img_names if img_name.split('_')[0] in recording_nums]
+
+    for img_name in test_img_names:
+        img_src_path = os.path.join(img_src_dir, img_name + '.jpg')
+        img_dst_path = os.path.join(dst_dir, img_name + '.jpg')
+        label_dst_path = os.path.join(dst_dir, img_name + '.txt')
+
+        frame_test_labels = [label for label in test_labels if label['image_name'] == img_name]
+        if frame_test_labels:
+            img = cv2.imread(img_src_path)
+            yolo_bbs = [coords_to_yolo(img.shape, label['left'], label['top'], label['right'], label['bottom']) for label in frame_test_labels]
+            write_yolo_bboxes(label_dst_path, yolo_bbs)
+        else:
+            open(label_dst_path, 'a').close()
+
+        shutil.copy(img_src_path, img_dst_path)
+
+
+def display_cutting_truncated_labels(labels_src_dir, img_src_dir):
+    """
+    Display cutting truncated objects from frames
+    :param labels_src_dir: path to kitti tracking labels
+    :param img_src_dir: path to kitti tracking images
+    :return:
+    """
+
+    labels = get_kitti_tracking_labels_with_img_names_merged(labels_src_dir, img_src_dir)
+    truncated_labels = [label for label in labels if int(label['truncated']) == 1]
+    truncated_img_names = set([label['image_name'] for label in truncated_labels])
+    print('truncated_img_names num', len(truncated_img_names))
+
+    for img_name in truncated_img_names:
+        frame_truncated_bbs = [label_to_xyx2y2_int(label) for label in truncated_labels if label['image_name'] == img_name]
+        full_img_name = img_name + '.jpg'
+        img_path = os.path.join(img_src_dir, full_img_name)
+        img = cv2.imread(img_path)
+        cut_bbs_out_of_img(img, frame_truncated_bbs)
+
+
+def cut_bbs_out_of_img(img, bbs):
+    """
+    Cut labeled objects from the image (for example truncated objects)
+    :param img: src image path
+    :param bbs: 2d list of bounding boxes in [left, top, right, bottom] format
+    :return: img
+    """
+    cut_img = img.copy()
+    for bb in bbs:
+        left, top, right, bottom = bb
+        cv2.rectangle(cut_img, (left, top), (right, bottom), 0, -1)
+
+    return cut_img
+
+
+def label_to_xyx2y2(label):
+    return [label['left'], label['top'], label['right'], label['bottom']]
+
+
+def label_to_xyx2y2_int(label):
+    return [int(label['left']), int(label['top']), int(label['right']), int(label['bottom'])]

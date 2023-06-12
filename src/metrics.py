@@ -26,10 +26,7 @@ class Metrics:
         self.trajectory_prediction_times = []
         self.prediction_steps = [1, 3, 10]
         self.map_frequency = 200
-        self.final_map50 = 0
-        self.final_map50_95 = 0
-        self.final_precision = 0
-        self.final_recall = 0
+        self.default_metrics = {}
         self.coco_summary = {}
 
         print('labels num:', len(self.labels))
@@ -121,23 +118,32 @@ class Metrics:
         print('gt_frame_nums_list:', gt_frame_nums_list)
         print('all gt labels list:', [label['frame'] for label in self.labels])
 
-        map_05 = metric_fn.value(iou_thresholds=0.5, recall_thresholds=np.arange(0., 1.01, 0.01), mpolicy='soft')
-        map_05_095 = metric_fn.value(iou_thresholds=np.arange(0.5, 1.0, 0.05), recall_thresholds=np.arange(0., 1.01, 0.01), mpolicy='soft')
+        map_50_res = metric_fn.value(iou_thresholds=0.5, recall_thresholds=np.arange(0., 1.01, 0.01), mpolicy='soft')
+        map_50_095_res = metric_fn.value(iou_thresholds=np.arange(0.5, 1.0, 0.05), recall_thresholds=np.arange(0., 1.01, 0.01), mpolicy='soft')
 
-        self.final_map50 = map_05['mAP']
-        self.final_map50_95 = map_05_095['mAP']
+        map50 = map_50_res['mAP']
+        map_50_095 = map_50_095_res['mAP']
 
-        # Precision = (True Positive)/(True Positive + False Positive)
-        self.final_precision = map_05['tp'] / (map_05['tp'] + map_05['fp'])
 
-        # Recall = (True Positive) / (True Positive + False Negative)
-        self.final_recall = map_05['tp'] / map_05['tpfn']
+        tp = map_50_res['tp']
+        fp = map_50_res['fp']
+        total_positives = map_50_res['tpfn']
 
-        print('total positives:', map_05['tpfn'], 'tp:', map_05['tp'], 'fp:', map_05['fp'])
-        print(f"COCO mAP (AP50): {self.final_map50}")
-        print(f"COCO mAP (AP50:95): {self.final_map50_95}")
-        print('COCO 50 Precision:', self.final_precision)
-        print('COCO 50 Recall:', self.final_recall)
+        precision = tp / (tp + fp)
+        recall = tp / total_positives
+        f1_score = 2 * (precision * recall) / (precision + recall)
+
+        self.default_metrics = {'mAP50': map50, 'mAP50_95': map_50_095, 'Precision': precision, 'Recall': recall, 'F1_score': f1_score}
+
+        print('---------- COCO default metrics ---------------')
+        print(self.default_metrics)
+        print('total positives:', total_positives, 'tp:', tp, 'fp:', fp)
+        # print(f"COCO mAP (AP50): {self.final_map50}")
+        # print(f"COCO mAP (AP50:95): {self.final_map50_95}")
+        # print('COCO 50 Precision:', self.final_precision)
+        # print('COCO 50 Recall:', self.final_recall)
+        # print('COCO 50 F1 score:', self.final_f1)
+
 
     def calculate_final_map_v2(self):
         """Calculate COCO metrics
