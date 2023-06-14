@@ -23,7 +23,7 @@
 
 
 # ----------------------------------------------------------------------------
-# LABELS format in KITTI Object Tracking Dataset
+# LABELS format in \s
 # Values    Name      Description
 # ----------------------------------------------------------------------------
 # 1    frame        Frame within the sequence where the object appearers
@@ -915,8 +915,9 @@ def count_truncated_cyclist_per_recording(labels_src_dir):
 
     print('Stats per recoding (21 recordings, from 0000 to 0020)')
     recording_nums = [str(i).zfill(4) for i in range(21)]
-    truncations = [0, 1]
+    truncations = [0, 1, 2]
 
+    df = pd.DataFrame(index=recording_nums)
     imgs_with_cyclists = []
     imgs_num = len(os.listdir('data/kitti_tracking_data/merged_raw_images'))
     frames_to_remove = []
@@ -943,6 +944,9 @@ def count_truncated_cyclist_per_recording(labels_src_dir):
             else:
                 detections_on_frames_with_truncations.append(0)
 
+        df[f'Detections {truncation}'] = truncated_cyclist_detections
+        df[f'Images {truncation}'] = truncated_cyclist_detections
+
         print(f'Cyclist Detections num for truncation [{truncation}]:', truncated_cyclist_detections, '\t sum:', sum(truncated_cyclist_detections))
         print(f'Detections on frames with truncations [{truncation}]:', detections_on_frames_with_truncations, '\t sum:',
               sum(detections_on_frames_with_truncations))
@@ -950,6 +954,8 @@ def count_truncated_cyclist_per_recording(labels_src_dir):
 
     print('Overall number of all images', imgs_num)
     print('Images with Cyclists:', imgs_with_cyclists, '\t sum:', sum(imgs_with_cyclists))
+
+    print(df.head(30))
     print('-------------------------------')
 
 
@@ -1218,10 +1224,10 @@ def get_bb_height(bb):
 
 def transform_bb(bb):
     """
-    :param bb: [top_left_x,top_left_y, bottom_right_x, bottom_right_y]
-    :return: [center_x, center_y, width, height]
+    :param bb: [top_left_x,top_left_y, bottom_right_x, bottom_right_y, score]
+    :return: [center_x, center_y, width, height, score]
     """
-    return get_center_x(bb), get_center_y(bb), get_bb_width(bb), get_bb_height(bb)
+    return get_center_x(bb), get_center_y(bb), get_bb_width(bb), get_bb_height(bb), bb[4]
 
 
 def m_to_xy(x1, y1, m, dist, direction):
@@ -1279,30 +1285,40 @@ def calculate_raw_tracking_kitti_img_shapes(src_frames_dir):
     print(img_widths, img_heights)
 
 
-def parse_yolov7_test_map_output(src_path):
+def parse_yolov7_test_map_output(src_path, yolo_version='yolov7x'):
     with open(src_path) as f:
-        df = pd.DataFrame(columns=['mAP50', 'map50_95', 'Precision', 'Recall'])
+        df = pd.DataFrame(columns=['mAP50', 'map50_95', 'Precision', 'Recall', 'F1_score'])
         lines = f.read().splitlines()
         results = {}
         for i, line in enumerate(lines):
             if '--------------- ' in line and 'init' not in line:
                 current_weights_name = line.split(' ')[1]
-                values_index = i + 16
+                if yolo_version=='yolov7x':
+                    values_index = i + 16
+                else:
+                    values_index = i + 19
+
                 print(line, current_weights_name)
                 if values_index < len(lines):
                     values_raw = lines[values_index].split()
-                    values = [values_raw[5], values_raw[6], values_raw[3], values_raw[4]]
+                    f1_score = calulcate_f1_score(values_raw[3], values_raw[4])
+                    values = [values_raw[5], values_raw[6], values_raw[3], values_raw[4], f1_score]
                     results[current_weights_name] = values
                     df.loc[current_weights_name] = values
         print(df.head(30))
         filename = os.path.basename(src_path)
         dirname = os.path.dirname(src_path)
 
-        new_filename = filename.split('.txt')[0] + '_parsed.txt'
+        new_filename = filename.split('.txt')[0] + '_parsed.csv'
         dst_path = os.path.join(dirname, new_filename)
-        print()
         df.to_csv(dst_path)
 
+def calulcate_f1_score(precision, recall):
+    precision = float(precision)
+    recall = float(recall)
+    if precision + recall == 0:
+        return 0
+    return 2 * (precision * recall) / (precision + recall)
 
 def filter_kitti_and_save(labels_src_dir, img_src_dir, dst_dir, test_recording_nums=['0012', '0013'], balance_dataset=True,
                           truncation_filter='remove', occlusion_filter=True):
@@ -1388,12 +1404,16 @@ def filter_kitti_and_save(labels_src_dir, img_src_dir, dst_dir, test_recording_n
 
         final_labels_num += len(frame_training_labels)
 
-    # If balance dataset is on, then make so that training dataset images contains 50% imgs with cyclist and 50% without them
+    # If balance dataset is on, then make so that training dataset images contains 50% imgs with cyclist and 50% without them.
+    # Substract the imgs that got empty after removing the truncated labels from the frame.
     num_of_labeled_imgs = len(training_labeled_img_names) - empty_truncated_frame_num
     if balance_dataset:
-        training_non_labeled_img_names = random.sample(non_labeled_img_names, num_of_labeled_imgs)
+        num_of_non_labeled_imgs = len(training_labeled_img_names) - empty_truncated_frame_num * 2  # substract 2*truncated_frames becouse they are already in the
+        training_non_labeled_img_names = random.sample(non_labeled_img_names, num_of_non_labeled_imgs)
     else:
         training_non_labeled_img_names = non_labeled_img_names
+
+
 
     # Save empty images and empty label files to equalize labeled images, proportion 1:1
     for img_name in training_non_labeled_img_names:
@@ -1405,13 +1425,16 @@ def filter_kitti_and_save(labels_src_dir, img_src_dir, dst_dir, test_recording_n
 
     training_label_nums.append(final_labels_num)
     training_frame_nums.append(num_of_labeled_imgs)
+    total_num_of_non_labeled_imgs = len(training_non_labeled_img_names) + empty_truncated_frame_num
 
     print('---------------- Save filtered kitti labels and images ------------------')
     print('img_names', len(img_names))
     print('raw_labeled_img_names', len(raw_labeled_img_names))
     print('non_labeled_img_names', len(non_labeled_img_names))
     print('num_of_labeled_imgs', num_of_labeled_imgs)
-    print('num_of_non_labeled_img_names', len(training_non_labeled_img_names))
+    print('num_of_non_labeled_imgs', total_num_of_non_labeled_imgs)
+    print('total training imgs', total_num_of_non_labeled_imgs + num_of_labeled_imgs)
+
     print('empty_truncated_frame_num', empty_truncated_frame_num)
     print('training_label_nums', training_label_nums)
     print('training_frame_nums', training_frame_nums)

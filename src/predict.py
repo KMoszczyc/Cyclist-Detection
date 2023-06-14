@@ -208,7 +208,8 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path, conf
 
 
 # --------------------------------------------------------------------
-def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, weights_path, config_path, model_type, conf_threshold=0.4, nmsThreshold=0.4, show_frames=True):
+def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, weights_path, config_path, model_type, conf_threshold=0.4,
+                                   nms_threshold=0.6, max_age=5, min_hits=3, sort_iou_threshold=0.3, show_frames=True):
     """
 
     :param src_frames_dir: path to images
@@ -220,7 +221,7 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
     :param model: yolov4 or volov7
     :return:
     """
-    print('-----------------------','conf_threshold:',conf_threshold,'----------------------')
+    print('-------', 'conf_threshold:', conf_threshold, ', nms_threshold:', nms_threshold, ', max_age:', max_age, ', min_hits:', min_hits, ', sort_iou_threshold:', sort_iou_threshold,  '--------')
 
     if model_type == 'yolov4':
         print('Using YOLO v4')
@@ -263,12 +264,13 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
         img_filepaths = get_kitti_tracking_img_filepaths(src_frames_dir, recording_num)
 
         img1 = cv2.imread(img_filepaths[0])
-        width, height = int(img1.shape[1]),  int(img1.shape[0])
+        width, height = int(img1.shape[1]), int(img1.shape[0])
+        print(width, height)
 
-        mot_tracker = Sort(max_age=5,
-                           min_hits=3,
-                           iou_threshold=0.3)
-        trajectory_model = TrajectoryModel()
+        mot_tracker = Sort(max_age=max_age,
+                           min_hits=min_hits,
+                           iou_threshold=sort_iou_threshold)
+        trajectory_model = TrajectoryModel(width, height)
         camera_motion_estimator = CameraMotionEstimator(img_filepaths, width, height)
 
         for f in img_filepaths:
@@ -276,11 +278,13 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
 
             # Cyclist detection with Yolo
             start_time = time.time()
+            scores = []
             if model_type == 'yolov4':
-                classIds, scores, boxes = yolov4_model.detect(frame, confThreshold=conf_threshold, nmsThreshold=nmsThreshold)
+                classIds, scores, boxes = yolov4_model.detect(frame, confThreshold=conf_threshold, nmsThreshold=nms_threshold)
                 bbs = convert_yolov4_bb(classIds, scores, boxes)
             else:
-                bbs = yolov7_model.detect(frame, conf_thres=conf_threshold, iou_thres=0.5)
+                bbs = yolov7_model.detect(frame, conf_thres=conf_threshold, iou_thres=nms_threshold)
+                scores = [bb[4] for bb in bbs]
             yolo_end_time = time.time()
 
             # Cyclist tracking with Sort
@@ -288,6 +292,7 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
             tracked_bbs = mot_tracker.update(detections)
             tracking_end_time = time.time()
 
+            # print('bbs:', len(bbs), 'tracked_bbs', len(tracked_bbs))
             # Display raw BBs
             for bb in bbs:
                 cv2.rectangle(frame, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])), (0, 255, 0), 1)  # Green
@@ -317,9 +322,15 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
             predictions_split = []
 
             trajectory_prediction_end_time = time.time()
+
+            # normal
             # Update metrics (mAP, timers etc)
             metrics.update(detections, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
                            trajectory_prediction_end_time)
+
+            # sort testing
+            # metrics.update(tracked_bbs, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
+            #                 trajectory_prediction_end_time)
 
             # Save to mp4
             # out.write(frame)

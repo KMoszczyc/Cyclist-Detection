@@ -10,7 +10,7 @@ from src.review_object_detection_metrics.src.utils.enumerators import BBFormat, 
 
 
 class Metrics:
-    def __init__(self, labels, image_names, num_of_frames):
+    def __init__(self, labels, image_names, num_of_frames, iou_threshold=0.5):
         self.labels = labels
         self.image_names = image_names
         self.num_of_frames = num_of_frames
@@ -28,22 +28,26 @@ class Metrics:
         self.map_frequency = 200
         self.default_metrics = {}
         self.coco_summary = {}
+        self.iou_threshold = iou_threshold
+        self.trajectory_metric_summary= []
 
-        print('labels num:', len(self.labels))
+        print('labels num:', len(self.labels), 'iou_threshold:',  self.iou_threshold)
 
     def reset_labels(self, labels):
         self.labels = labels
         self.frame_counter = 0
 
-    def update(self, yolo_predictions, predictions, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
+    def update(self, yolo_predictions, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
                trajectory_prediction_end_time):
         """Both predictions and validation_data are in format: [x1, y1, x2, y2] (top left, right bottom)
         Where predictions are a list of frames, each frame has a list of tracked objects, each object has 3 bbs: each one for the prediction step [1, 3, 10]
         """
 
         self.yolo_predictions.append(self.preds_to_map_format(yolo_predictions, self.yolo_preds_to_map_format))
-        for i, prediction in enumerate(predictions):
-            self.predictions[i].append(prediction)
+        for i, predictions in enumerate(predictions_split):
+            self.predictions[i].append(self.preds_to_map_format(predictions, self.yolo_preds_to_map_format))
+
+        # print(len(self.predictions[0]), self.predictions[0])
 
         yolo_time = yolo_end_time - start_time
         tracking_time = tracking_end_time - yolo_end_time
@@ -78,8 +82,18 @@ class Metrics:
 
         # Calculate map after the last frame
         if self.frame_counter == self.num_of_frames - 1:
-            self.calculate_final_map()
-            self.calculate_final_map_v2()
+            self.calculate_final_map(self.yolo_predictions)
+
+
+            # print('------------------- step 1 ------------------')
+            # self.calculate_final_map(self.predictions[0], step=1)
+            # print('------------------- step 3 ------------------')
+            # self.calculate_final_map(self.predictions[1], step=3)
+            # print('------------------- step 10 ------------------')
+            # self.calculate_final_map(self.predictions[2], step=10)
+            #
+            # self.print_trajectory_metric_summary()
+            # self.calculate_final_map_v2() # more official metric repo
 
         self.metric_counter += 1
         self.frame_counter += 1
@@ -95,7 +109,7 @@ class Metrics:
     def pretty_time(self, seconds):
         return f'{round(seconds * 1000, 2)}ms'
 
-    def calculate_final_map(self):
+    def calculate_final_map(self, predictions, step=0, trajectory_prediction=True):
         """Calculate mAP for the entire test dataset
         TODO: include all labels"""
         print('------------------------- Final mAP -------------------------')
@@ -106,8 +120,12 @@ class Metrics:
         gt_frame_nums_list = []
         print('total_frame_counter:', self.total_frame_counter)
         for i in range(self.total_frame_counter + 1):
-            preds = self.yolo_predictions[i]
-            labels_formatted = np.array([self.label_to_map_format(label) for label in self.labels if int(label['frame']) == i])
+            preds = predictions[i]
+
+            # labels_formatted = np.array([self.label_to_map_format(label) for label in self.labels if int(label['frame']) == i])
+            labels_formatted = np.array([self.label_to_map_format(label) for label in self.labels if int(label['frame']) == i + step])
+            # print(i, preds, labels_formatted)
+
             gt_frame_nums_list += [label['frame'] for label in self.labels if int(label['frame']) == i]
             num_of_pred_bbs += len(preds)
             num_of_gt_bbs += len(labels_formatted)
@@ -133,16 +151,15 @@ class Metrics:
         recall = tp / total_positives
         f1_score = 2 * (precision * recall) / (precision + recall)
 
-        self.default_metrics = {'mAP50': map50, 'mAP50_95': map_50_095, 'Precision': precision, 'Recall': recall, 'F1_score': f1_score}
+        if trajectory_prediction:
+            self.default_metrics = {'step':step, 'mAP50': map50, 'mAP50_95': map_50_095, 'Precision': precision, 'Recall': recall, 'F1_score': f1_score}
+            self.trajectory_metric_summary.append(self.default_metrics)
+        else:
+            self.default_metrics = {'mAP50': map50, 'mAP50_95': map_50_095, 'Precision': precision, 'Recall': recall, 'F1_score': f1_score}
 
         print('---------- COCO default metrics ---------------')
         print(self.default_metrics)
         print('total positives:', total_positives, 'tp:', tp, 'fp:', fp)
-        # print(f"COCO mAP (AP50): {self.final_map50}")
-        # print(f"COCO mAP (AP50:95): {self.final_map50_95}")
-        # print('COCO 50 Precision:', self.final_precision)
-        # print('COCO 50 Recall:', self.final_recall)
-        # print('COCO 50 F1 score:', self.final_f1)
 
 
     def calculate_final_map_v2(self):
@@ -169,10 +186,13 @@ class Metrics:
 
         precision = coco_metrics['0']['TP'] / (coco_metrics['0']['TP'] + coco_metrics['0']['FP'])
         recall = coco_metrics['0']['TP'] / coco_metrics['0']['total positives']
+        f1_score = 2 * (precision * recall) / (precision + recall)
 
         print(self.coco_summary)
         print('total positives', coco_metrics['0']['total positives'], 'tp:', coco_metrics['0']['TP'], 'fp', coco_metrics['0']['FP'], 'precision:', precision,
-              'recall:', recall)
+              'recall:', recall, 'f1_score', f1_score)
+        print(coco_metrics['0']['precision'].mean(), coco_metrics['0']['recall'].mean())
+        print(f"{self.coco_summary['AP50']} & {self.coco_summary['AP']} & {precision} & {recall} & {f1_score}")
 
     def label_to_bb_object(self, label):
         return BoundingBox(image_name=label['image_name'], class_id='0', coordinates=(label['left'], label['top'], label['right'], label['bottom']),
@@ -249,3 +269,11 @@ class Metrics:
         plt.ylabel('Precision', fontsize=16)
 
         plt.show()
+
+    def print_trajectory_metric_summary(self):
+        print(self.trajectory_metric_summary)
+        df = pd.DataFrame(self.trajectory_metric_summary)
+        df = df.set_index('step')
+        print(df.head(10))
+
+        df.to_csv('results/tests/trajectory_prediction/final_results.csv')

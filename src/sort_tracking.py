@@ -120,6 +120,8 @@ class KalmanBoxTracker(object):
     self.hits = 0
     self.hit_streak = 0
     self.age = 0
+    self.visible = False
+
 
   def update(self,bbox):
     """
@@ -131,6 +133,7 @@ class KalmanBoxTracker(object):
     self.hit_streak += 1
     self.kf.update(convert_bbox_to_z(bbox))
     self.observed_history.append(bbox)
+
 
   def predict(self):
     """
@@ -245,9 +248,11 @@ class Sort(object):
 
     for trk in reversed(self.trackers):
         d = trk.get_state()[0]
-        if self.is_tracker_visible(trk):
-          # ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
+        if self.is_tracker_visible_v2(trk):
+          trk.visible=True
           ret.append(np.concatenate((d, [trk.id])).reshape(1, -1))
+        else:
+          trk.visible = False
         i -= 1
         # remove dead tracklet
         if(trk.time_since_update > self.max_age):
@@ -258,6 +263,8 @@ class Sort(object):
 
   def is_tracker_visible(self, tracker):
     return (tracker.time_since_update < 1) and (tracker.hit_streak >= self.min_hits or self.frame_count <= self.min_hits)
+  def is_tracker_visible_v2(self, tracker):
+    return tracker.hit_streak >= self.min_hits or self.frame_count <= self.min_hits
 
 def parse_args():
     """Parse input arguments."""

@@ -140,7 +140,7 @@ class SingleInference_YOLOV7:
         processed_img = self.load_cv2mat(img)
         self.outputs = self.model(processed_img, augment=False)[0]
         # Apply NMS
-        self.outputs = non_max_suppression(self.outputs, conf_thres, iou_thres, classes=None, agnostic=False)
+        self.outputs = non_max_suppression(self.outputs, conf_thres=conf_thres, iou_thres=iou_thres, classes=None, agnostic=False)
         img_i = self.im0.copy()
         self.ori_images = [img_i]
         self.predicted_bboxes_PascalVOC = []
