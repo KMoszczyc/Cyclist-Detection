@@ -13,7 +13,7 @@ from PIL import Image
 from src.sort_tracking import *
 import numpy as np
 from src.load_utils import get_kitti_tracking_img_filepaths, get_kitti_tracking_labels, get_frame_labels, draw_arrow_from_angle, vector_to_angle, \
-    draw_example_arrows, get_center_x, get_center_y, transform_bb, m_to_xy, draw_arrow_from_m, get_kitti_tracking_labels_multiple_recordings, \
+    draw_example_arrows, get_center_x, get_center_y, transform_bb, draw_arrow_from_m, get_kitti_tracking_labels_multiple_recordings, \
     merge_kitti_tracking_labels_multiple_recordings, get_kitti_tracking_labels_with_img_names
 from src.metrics import Metrics
 from src.camera_motion_estimator import CameraMotionEstimator
@@ -209,7 +209,7 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path, conf
 
 # --------------------------------------------------------------------
 def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, weights_path, config_path, model_type, conf_threshold=0.4,
-                                   nms_threshold=0.6, max_age=5, min_hits=3, sort_iou_threshold=0.3, show_frames=True):
+                                   nms_threshold=0.6, max_age=5, min_hits=3, sort_iou_threshold=0.3, show_frames=True, debug=False):
     """
 
     :param src_frames_dir: path to images
@@ -258,7 +258,7 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
     print(merged_image_names)
 
     print('Frame counts:', num_of_frames, num_of_frames_list)
-    metrics = Metrics(merged_labels, merged_image_names, num_of_frames)
+    metrics = Metrics(merged_labels, merged_image_names, num_of_frames, debug=debug)
 
     for recording_num in recording_nums:
         img_filepaths = get_kitti_tracking_img_filepaths(src_frames_dir, recording_num)
@@ -270,7 +270,7 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
         mot_tracker = Sort(max_age=max_age,
                            min_hits=min_hits,
                            iou_threshold=sort_iou_threshold)
-        trajectory_model = TrajectoryModel(width, height)
+        trajectory_model = TrajectoryModel(width, height, debug=debug)
         camera_motion_estimator = CameraMotionEstimator(img_filepaths, width, height)
 
         for f in img_filepaths:
@@ -314,19 +314,20 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
             draw_example_arrows(frame)
 
             # Get vectors estimating shift for each tracked object on the frame due to camera motion
-            # frame, correction_vectors = camera_motion_estimator.update(frame, tracked_bbs)
+            frame, correction_vectors = camera_motion_estimator.update(frame, tracked_bbs)
+            correction_vectors = []
             camera_motion_estimation_end_time = time.time()
 
             # Predict Cyclist Trajectory
-            # predictions, predictions_split, frame = trajectory_model.predict_trajectory(mot_tracker, correction_vectors, frame)
-            predictions_split = []
+            predictions, predictions_split, frame = trajectory_model.predict_trajectory(mot_tracker, correction_vectors, frame)
+            # predictions_split = []
 
             trajectory_prediction_end_time = time.time()
 
             # normal
             # Update metrics (mAP, timers etc)
-            metrics.update(detections, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
-                           trajectory_prediction_end_time)
+            frame = metrics.update(detections, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
+                           trajectory_prediction_end_time, frame)
 
             # sort testing
             # metrics.update(tracked_bbs, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
@@ -337,50 +338,15 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
             if show_frames:
                 cv2.imshow('frame', frame)
                 c = cv2.waitKey(1)  # video
+                # c = cv2.waitKey(100)  # frame  by frame
                 # c = cv2.waitKey(0)  # frame  by frame
+
                 if c & 0xFF == ord('q'):
                     break
 
     # out.release()
     cv2.destroyAllWindows()
     return metrics.default_metrics, metrics.coco_summary
-
-
-def predict_trajectory(mot_tracker, correction_vectors, frame):
-    predictions = []
-    num_of_past_bbs = 5
-
-    for tracker in mot_tracker.trackers:
-        history_len = len(tracker.observed_history)
-        bb_id = min(history_len, num_of_past_bbs)  # at last of 5 tracker positions
-        if not tracker.observed_history[-bb_id:]:
-            continue
-
-        center_xs, center_ys, widths, heights = zip(*[transform_bb(bb) for bb in tracker.observed_history[-bb_id:]])
-
-        direction = 1 if center_xs[-1] - center_xs[0] > 0 else -1
-        dist = np.sqrt((center_xs[-1] - center_xs[0]) ** 2 + (center_ys[-1] - center_ys[0]) ** 2) / num_of_past_bbs
-        m, b = np.polyfit(center_xs, center_ys, 1)
-        pred_x, pred_y = m_to_xy(center_xs[-1], center_ys[-1], m, dist, direction)
-
-        draw_arrow_from_m(frame, center_xs[-1], center_ys[-1], m, dist, direction, color=(0, 255, 0))  # Green
-
-        correction_vector_temp = [vector['vector'] for vector in correction_vectors if tracker.id == vector['id']]
-        if correction_vector_temp and correction_vector_temp[0]:
-            correction_vector = correction_vector_temp[0]
-            corrected_pred_x = pred_x + correction_vector[0]
-            corrected_pred_y = pred_y + correction_vector[1]
-            # print('Raw pred:', pred_x, pred_y, '\tCorrection vector:', correction_vector, '\tCorrected pred:', corrected_pred_x, corrected_pred_y)
-            cv2.arrowedLine(frame, (int(center_xs[-1]), int(center_ys[-1])), (int(corrected_pred_x), int(corrected_pred_y)), (0, 255, 255), 2,
-                            tipLength=0.4)  # Yellow
-
-        prediction = {
-            'center_x': 0,
-            'center_y': 0,
-        }
-        predictions.append(prediction)
-
-    return predictions, frame
 
 
 # TODO: Add deepsort to project

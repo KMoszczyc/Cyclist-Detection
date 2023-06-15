@@ -1230,15 +1230,6 @@ def transform_bb(bb):
     return get_center_x(bb), get_center_y(bb), get_bb_width(bb), get_bb_height(bb), bb[4]
 
 
-def m_to_xy(x1, y1, m, dist, direction):
-    dist_scaled = dist / 1
-    dx = dist_scaled / np.sqrt(1 + (m * m))
-    dy = m * dx
-
-    x2 = x1 + dx * direction
-    y2 = y1 + dy
-    return x2, y2
-
 
 def draw_arrow_from_m(frame, x1, y1, m, dist, direction, color=(0, 255, 0)):
     dist_scaled = dist / 1

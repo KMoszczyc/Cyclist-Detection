@@ -86,9 +86,9 @@ if __name__ == '__main__':
     nms_threshold = 0.5
 
     # predict_video_from_frames_yolo(src_frames_dir,src_labels_dir,recording_nums, output_video_path, yolov4_weights_path, config_path, model_type='yolov4')
-    # predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, yolov7_weights_path, config_path, model_type='yolov7',
-    #                                conf_threshold=conf_threshold, nms_threshold=nms_threshold, max_age=5, min_hits=2,
-    #                                sort_iou_threshold=0.5, show_frames=True)
+    predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, yolov7_weights_path, config_path, model_type='yolov7',
+                                   conf_threshold=conf_threshold, nms_threshold=nms_threshold, max_age=5, min_hits=2,
+                                   sort_iou_threshold=0.5, show_frames=True, debug=False)
 
     # predict_video(input_video_path, output_video_path)
     # predict_video_yolov4_deepsort(input_video_path, output_video_path)
@@ -136,7 +136,7 @@ if __name__ == '__main__':
 
     # ----------------------- TESTS --------------------------------------
     # test_yolov4_confidence_thresholds()
-    test_yolov4_nms_thresholds()
+    # test_yolov4_nms_thresholds()
     # test_yolov7_confidence_thresholds()
     # test_yolov7_nms_thresholds()
     # test_object_tracking()
