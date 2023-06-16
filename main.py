@@ -52,8 +52,9 @@ if __name__ == '__main__':
     #
 
     # Cyclist counts per recordings
+    # count_cyclists_per_recording_yolo('data/kitti_tracking_data/merged_not_occluded_filtered_cut_416')
+
     # count_cyclists_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
-    # # count_cyclists_per_recording_yolo('data/kitti_tracking_data/merged_not_occluded_filtered_cut_416')
     # count_truncated_cyclist_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
     # count_occluded_cyclist_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
 
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     src_labels_dir = 'data/kitti_tracking_data/raw/data_tracking_label_2/training'
 
     recording_nums = ['0012', '0019']
-    # recording_nums = ['0012']
+    # recording_nums = ['0015']
 
     output_video_path = f'results/results_videos/yolov4_sort_kitti_valid.mp4'
     conf_threshold = 0.7
@@ -127,10 +128,57 @@ if __name__ == '__main__':
     # display_cutting_truncated_labels(src_labels_dir, src_frames_dir)
 
     # print('filtered_labels:', len(filtered_labels))
-    # display_kitti_tracking_truncated(src_frames_dir, src_labels_dir, '0013', 1)
+    # display_kitti_tracking_truncated(src_frames_dir, src_labels_dir, '0002', 1)
     # resize_images('data/kitti_tracking_data/merged/merged_not_occluded_truncated_raw', 'data/kitti_tracking_data/training/merged_not_occluded_truncated_cut_640', 640,
     #               square_img=True, cut_img_flag=True)
 
+
+
+    # Tsinghua
+    tsinghua_img_train_dir = 'data/data_raw_tsinghua/raw_images/train_images/leftImg8bit/train/tsinghuaDaimlerDataset'
+    tsinghua_img_valid_dir = 'data/data_raw_tsinghua/raw_images/valid_images/leftImg8bit/valid/tsinghuaDaimlerDataset'
+    tsinghua_img_test_dir = 'data/data_raw_tsinghua/raw_images/test_images/leftImg8bit/test/tsinghuaDaimlerDataset'
+
+    tsinghua_yolo_label_train_raw_dir = 'data\data_raw_tsinghua/raw_labels/train_labels'
+    tsinghua_yolo_label_valid_raw_dir = 'data/data_raw_tsinghua/raw_labels/valid_labels'
+    tsinghua_yolo_label_test_raw_dir = 'data/data_raw_tsinghua/raw_labels/test_labels'
+
+    tsinghua_yolo_label_train_dir = 'data/data_raw_tsinghua/cyclist_yolo_labels/train_labels'
+    tsinghua_yolo_label_valid_dir = 'data/data_raw_tsinghua/cyclist_yolo_labels/valid_labels'
+    tsinghua_yolo_label_test_dir = 'data/data_raw_tsinghua/cyclist_yolo_labels/test_labels'
+
+    # Convert tsinghua json labels to yolo
+    # json_to_yolo_label(tsinghua_yolo_label_train_raw_dir, tsinghua_img_dir, tsinghua_yolo_label_train_dir) # train
+    # json_to_yolo_label(tsinghua_yolo_label_valid_raw_dir, tsinghua_img_dir, tsinghua_yolo_label_valid_dir)   # valid
+    # json_to_yolo_label(tsinghua_yolo_label_test_raw_dir, tsinghua_img_dir, tsinghua_yolo_label_test_dir) # test
+
+    # Reduce image sizes
+    tsinghua_lightweight_img_valid_dir = 'data/data_raw_tsinghua/lighweight_images/valid_images'
+    tsinghua_lightweight_img_test_dir = 'data/data_raw_tsinghua/lighweight_images/test_images'
+    # reduce_images_size_bulk(tsinghua_img_valid_dir, tsinghua_lightweight_img_valid_dir)
+    # reduce_images_size_bulk(tsinghua_img_test_dir, tsinghua_lightweight_img_test_dir)
+
+    # Display tsighua annotated images
+    # display_random_img('data/data_tsinghua/images', 'data/data_tsinghua/labels', is_yolo=True, is_raw_kitti=False)
+    # display_random_img(tsinghua_img_train_dir, tsinghua_yolo_label_train_yolo_dir, is_yolo=True, is_raw_kitti=False)
+    # display_random_img(tsinghua_img_valid_dir, tsinghua_yolo_label_valid_yolo_dir, is_yolo=True, is_raw_kitti=False)
+    # display_random_img(tsinghua_img_test_dir, tsinghua_yolo_label_test_dir, is_yolo=True, is_raw_kitti=False)
+
+    # display_yolo_images_sequentialy(tsinghua_lightweight_img_valid_dir, tsinghua_yolo_label_valid_yolo_dir)
+    # display_yolo_images_sequentialy(tsinghua_lightweight_img_test_dir, tsinghua_yolo_label_test_dir)
+
+    # Filter small cyclists from tsinghua
+    img_size = (1024, 2048, 3)
+    tsinghua_yolo_large_label_test_dir = 'data/data_raw_tsinghua/cyclist_large_yolo_labels/test_labels'
+    # filter_small_yolo_labels(tsinghua_yolo_label_test_dir, tsinghua_yolo_large_label_test_dir, img_size, bb_height_threshold=60)
+    # display_yolo_images_sequentialy(tsinghua_lightweight_img_test_dir, tsinghua_yolo_large_label_test_dir)
+
+    # Count tsinghua yolo labels
+    # count_yolo_labels(tsinghua_yolo_label_test_dir)
+    # count_yolo_labels(tsinghua_yolo_large_label_test_dir)
+
+
+    # --------------------------------------------------------------------------------------
     # Create test dataset
     # images_to_test_dataset(src_frames_dir, src_labels_dir, 'data/kitti_tracking_data/test/raw_test_0012_0013', ['0012', '0013'])
 

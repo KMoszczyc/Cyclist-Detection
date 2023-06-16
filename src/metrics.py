@@ -7,7 +7,8 @@ from mean_average_precision import MetricBuilder
 from src.review_object_detection_metrics.src.evaluators.coco_evaluator import get_coco_summary, get_coco_metrics
 from src.review_object_detection_metrics.src.bounding_box import BoundingBox
 from src.review_object_detection_metrics.src.utils.enumerators import BBFormat, CoordinatesType, BBType
-
+from src.load_utils import radian_angle_diff, radians_to_degrees, vectors_radian_angle_diff
+import math
 
 class Metrics:
     def __init__(self, labels, image_names, num_of_frames, debug=False):
@@ -17,6 +18,7 @@ class Metrics:
         self.real_direction_angles = []
         self.yolo_predictions = []
         self.predictions = [[], [], []]
+        self.angle_predictions = []
         self.frame_counter = 0
         self.total_frame_counter = 0  # measure
         self.metric_counter = 0
@@ -37,7 +39,7 @@ class Metrics:
         self.labels = labels
         self.frame_counter = 0
 
-    def update(self, yolo_predictions, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
+    def update(self, yolo_predictions, predictions_split, angle_predictions, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
                trajectory_prediction_end_time, frame):
         """Both predictions and validation_data are in format: [x1, y1, x2, y2] (top left, right bottom)
         Where predictions are a list of frames, each frame has a list of tracked objects, each object has 3 bbs: each one for the prediction step [1, 3, 10]
@@ -46,6 +48,11 @@ class Metrics:
         self.yolo_predictions.append(self.preds_to_map_format(yolo_predictions, self.yolo_preds_to_map_format))
         for i, predictions in enumerate(predictions_split):
             self.predictions[i].append(self.preds_to_map_format(predictions, self.yolo_preds_to_map_format))
+        self.angle_predictions.append(angle_predictions)
+
+        print(f'------------------------- {self.total_frame_counter} -------------------------')
+        # print(yolo_predictions)
+        # print(angle_predictions)
 
         self.show_future_labels(frame, 1)
         self.show_future_labels(frame, 3)
@@ -99,6 +106,7 @@ class Metrics:
             print('------------------- step 10 ------------------')
             self.calculate_final_map(self.predictions[2], step=10)
 
+            self.evaluate_angle_predictions()
             self.print_trajectory_metric_summary()
             # self.calculate_final_map_v2() # more official metric repo
 
@@ -154,10 +162,11 @@ class Metrics:
         print('total_frame_counter:', self.total_frame_counter)
         for i in range(self.total_frame_counter + 1):
             preds = predictions[i]
+            # [for pred in preds if pred]
 
             # labels_formatted = np.array([self.label_to_map_format(label) for label in self.labels if int(label['frame']) == i])
             labels_formatted = np.array([self.label_to_map_format(label) for label in self.labels if int(label['frame']) == i + step])
-            print(i, preds, labels_formatted)
+            # print(i, preds, labels_formatted)
 
             gt_frame_nums_list += [label['frame'] for label in self.labels if int(label['frame']) == i]
             num_of_pred_bbs += len(preds)
@@ -225,6 +234,55 @@ class Metrics:
         print(coco_metrics['0']['precision'].mean(), coco_metrics['0']['recall'].mean())
         print(f"{self.coco_summary['AP50']} & {self.coco_summary['AP']} & {precision} & {recall} & {f1_score}")
 
+    def evaluate_angle_predictions(self):
+        angle_diffs = []
+        for i, angle_preds in enumerate(self.angle_predictions):
+            labels = [label for label in self.labels if int(label['frame']) == i]
+            print('frame:', i, 'labels_num:', len(labels), angle_preds)
+
+            angle_diffs += self.calculate_angle_diffs(angle_preds, labels)
+
+        avg_angle_radian_error = sum(angle_diffs) / len(angle_diffs)
+        avg_angle_degrees_error = radians_to_degrees(avg_angle_radian_error)
+
+        print('-------------------- Evaluate orientation angle diffs --------------------')
+        print('lengths matching?', len(self.angle_predictions), len(angle_diffs), len(self.labels))
+        print('angle_diffs', angle_diffs)
+        print('avg angle radian error:', avg_angle_radian_error)
+        print('avg angle degrees error:', avg_angle_degrees_error)
+
+    def calculate_angle_diffs(self, angle_preds, labels):
+        """
+        Calculate angle diffs between predictions and labels in radians
+        :param angle_preds: Cyclist orientation angle predictions in format [center_x, center_y, angle in radians]
+        :param labels: kitti label
+        :return: angle_diffs
+        """
+
+        angle_diffs = []
+        for angle_pred in angle_preds:
+            pred_center_x, pred_center_y, angle = angle_pred
+            closest_label = None
+            min_dist_sqr = np.inf
+
+            for label in labels:
+                label_center_x = (label['left'] + label['right']) / 2
+                label_center_y = (label['top'] + label['bottom']) / 2
+                dist_sqr = (label_center_x - pred_center_x)**2 + (label_center_y - pred_center_y)**2
+                if dist_sqr < min_dist_sqr:
+                    min_dist_sqr = dist_sqr
+                    closest_label = label
+
+            # check if angle pred center is inside the label's bounding box
+            if closest_label and (pred_center_x>closest_label['left'] and pred_center_x<closest_label['right'] and pred_center_y>closest_label['top'] and pred_center_y<closest_label['bottom']):
+                print('pred_angle:', angle,'gt angle', closest_label['bb_angle'], 'dist sqr:', min_dist_sqr)
+
+                angle_diff = radian_angle_diff(angle, closest_label['bb_angle'])
+                angle_diffs.append(angle_diff)
+        return angle_diffs
+
+
+
     def label_to_bb_object(self, label):
         return BoundingBox(image_name=label['image_name'], class_id='0', coordinates=(label['left'], label['top'], label['right'], label['bottom']),
                            type_coordinates=CoordinatesType.ABSOLUTE, img_size=None, bb_type=BBType.GROUND_TRUTH, confidence=None, format=BBFormat.XYX2Y2)
@@ -270,7 +328,7 @@ class Metrics:
         print(f"mAP (AP50:95): {metric_fn.value(iou_thresholds=np.arange(0.5, 1.0, 0.05), recall_thresholds=np.arange(0., 1.01, 0.01), mpolicy='soft')['mAP']}")
 
     def preds_to_map_format(self, preds, func):
-        return np.array([func(pred) for pred in preds])
+        return np.array([func(pred) for pred in preds if len(pred)>0])
 
     def trajectory_preds_to_map_format(self, pred):
         """pred -  [xmin, ymin, xmax, ymax, class_id, confidence]"""
@@ -312,3 +370,14 @@ class Metrics:
         print(df.head(10))
 
         df.to_csv('results/tests/trajectory_prediction/final_results.csv')
+
+
+    def radian_angle_diff(self, x, y):
+        """
+        Calculate difference between 2 radian angles in radians
+        :param x: angle x in radians
+        :param y: angle y in radians
+        :return: difference in radians
+        """
+        return min(y - x, y - x + 2 * math.pi, y - x - 2 * math.pi, key=abs)
+

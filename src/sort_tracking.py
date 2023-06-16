@@ -117,6 +117,7 @@ class KalmanBoxTracker(object):
     KalmanBoxTracker.count += 1
     self.history = []
     self.observed_history = []
+    self.last_angle = None
     self.hits = 0
     self.hit_streak = 0
     self.age = 0

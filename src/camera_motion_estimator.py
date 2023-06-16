@@ -4,7 +4,7 @@
 import cv2
 import numpy as np
 import math
-from src.load_utils import vector_to_angle, angle_to_vector
+from src.load_utils import vector_to_angle, angle_to_vector, draw_arrow_from_angle, draw_arrow_from_xy
 
 max_corners = 200
 feature_params = dict(maxCorners=max_corners,
@@ -36,6 +36,14 @@ class CameraMotionEstimator:
         self.counter = 0
         self.vanishing_points = []
         self.avg_vanishing_point = (0, 0)
+
+        self.left_avg_motion_vector = (0, 0)
+        self.right_avg_motion_vector = (0, 0)
+        self.total_avg_motion_vector = (0, 0)
+        self.left_avg_motion_vector_len = 0
+        self.right_avg_motion_vector_len = 0
+        self.total_avg_motion_vector_len = 0
+
         self.width = width
         self.height = height
 
@@ -51,13 +59,13 @@ class CameraMotionEstimator:
         vanishing_point = self.calculate_avg_vanishing_point(lines)
         frame = cv2.circle(frame, (int(vanishing_point[0]), int(vanishing_point[1])), 10, (0, 0, 255), -1)
 
-        frame, correction_vectors = self.detect_camera_motion(frame, bbs)
+        frame, correction_vectors, current_motion = self.detect_camera_motion(frame, bbs)
 
         self.counter += 1
 
         masked_frame = cv2.add(frame, self.mask)
 
-        return masked_frame, correction_vectors
+        return masked_frame, correction_vectors, current_motion
 
     def get_lines(self, frame):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -128,8 +136,8 @@ class CameraMotionEstimator:
                         MinError = err
                         vanishing_point = [x0, y0]
 
-        # Let's assume that camera is set even with car direction so x0 can beself.width/2
-        # Also lets give boundries on theself.height of vanishing point -> 1/3 and 2/3
+        # Let's assume that camera is set even with car direction so x0 can be self.width/2
+        # Also lets give boundries on the self.height of vanishing point -> 1/3 and 2/3
         min_y = self.height / 3
         max_y = self.height * 2 / 3
         x = self.width / 2
@@ -175,10 +183,16 @@ class CameraMotionEstimator:
 
         # Preprocess optical lines - format: x1, y2, x2, y2
         optical_lines = [(old[0], old[1], new[0], new[1]) for old, new in zip(old_points, new_points)]
-        filtered_lines = [line for line in optical_lines if
-                          line[3] < self.height / 3]  # Get lines only from the top portion of the frame and up to reduce noise
 
-        # Add margins to vanishing point
+        # Apply bottom margin, use optical lines only from the top portion of the frame and up to reduce noise
+        trackers_window_height_bottom_margin = self.avg_vanishing_point[1]
+        filtered_lines = [line for line in optical_lines if line[3] < trackers_window_height_bottom_margin]
+
+        # Display all filtered lines for debugging
+        # frame = self.display_optical_lines(frame, filtered_lines)
+
+
+        # Add x margins to vanishing point
         vanishing_point_left_margin_x = self.avg_vanishing_point[0] - 50
         vanishing_point_right_margin_x = self.avg_vanishing_point[0] + 50
 
@@ -195,9 +209,7 @@ class CameraMotionEstimator:
         left_vector_avg_len_sqr = sum(x ** 2 + y ** 2 for x, y in left_vectors) / len(left_vectors) if left_vectors else 0
         right_vector_avg_len_sqr = sum(x ** 2 + y ** 2 for x, y in right_vectors) / len(right_vectors) if right_vectors else 0
 
-        # avg_left = sum(x for x, y in left_vectors) / len(left_vectors) if left_vectors else 0 , sum(y for x, y in left_vectors) / len(left_vectors) if left_vectors else 0
-        # avg_right = sum(x for x, y in right_vectors) / len(right_vectors) if right_vectors else 0 , sum(y for x, y in right_vectors) / len(right_vectors) if right_vectors else 0
-        # print(avg_left, avg_right)
+        self.calculate_avg_vectors(left_lines, right_lines)
 
         current_motion = 'None'
         min_vector_len = 3
@@ -218,13 +230,14 @@ class CameraMotionEstimator:
         self.previous_frame_gray = frame_gray.copy()
         self.p0 = new_points.reshape(-1, 1, 2)
 
-        # Find lines that are over each bb (bounding box), remember about inverted height in opencv cooridinate system (0,0 is top left)
         if current_motion == 'None':
-            return frame, []
+            return frame, [], current_motion
 
         trackers_window_width = self.width / 5
         left_side_tracker_window_margin = self.width / 3
         right_tracker_window_margin = self.width * 2 / 3
+
+        # Find lines that are over each bb (bounding box), remember about inverted height in opencv cooridinate system (0,0 is top left)
         for bb in bbs:
             bb_center_x = (bb[2] + bb[0]) / 2
 
@@ -240,13 +253,48 @@ class CameraMotionEstimator:
                 continue
 
             # display correction vector
-            x1 = bb_center_x
-            y1 = bb[3]
-            x2 = x1 + correction_vector[0]
-            y2 = y1 + correction_vector[1]
-            frame = cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2, tipLength=0.2)
+            self.display_correction_vector(frame, bb, correction_vector)
 
-        return frame, correction_vectors
+
+        return frame, correction_vectors, current_motion
+
+    def calculate_avg_vectors(self, left_lines, right_lines):
+        left_vectors = [(line[2] - line[0], line[3] - line[1]) for line in left_lines]
+        right_vectors = [(line[2] - line[0], line[3] - line[1]) for line in right_lines]
+
+        left_vector_x_sum = sum(x for x, y in left_vectors)
+        right_vector_x_sum = sum(x for x, y in right_vectors)
+
+        left_vector_y_sum = sum(y for x, y in left_vectors)
+        right_vector_y_sum = sum(y for x, y in right_vectors)
+
+        # print(left_vectors, right_vectors)
+        self.right_avg_motion_vector = (right_vector_x_sum / len(right_vectors), right_vector_y_sum / len(right_vectors)) if right_vectors else (0, 0)
+        self.left_avg_motion_vector = (left_vector_x_sum / len(left_vectors), left_vector_y_sum / len(left_vectors)) if left_vectors else (0, 0)
+        self.total_avg_motion_vector = (self.right_avg_motion_vector[0] + self.left_avg_motion_vector[0], self.right_avg_motion_vector[1] + self.left_avg_motion_vector[1]) if right_vectors and left_vectors else (0, 0)
+
+        self.right_avg_motion_vector_len = self.calculate_vector_length(self.right_avg_motion_vector)
+        self.left_avg_motion_vector_len = self.calculate_vector_length(self.left_avg_motion_vector)
+        self.total_avg_motion_vector_len = self.calculate_vector_length(self.total_avg_motion_vector)
+
+        # print('vectors', 'left:', self.left_avg_motion_vector, 'right:', self.right_avg_motion_vector, 'left:', self.total_avg_motion_vector)
+        # print('lengths', 'left:', self.left_avg_motion_vector_len, 'right:', self.right_avg_motion_vector_len, 'left:', self.total_avg_motion_vector_len)
+
+    def calculate_vector_length(self, v):
+        x, y = v
+        return np.sqrt(x ** 2 + y ** 2)
+
+    def display_correction_vector(self, frame, bb, correction_vector):
+        # Get center x, and bottom y of the bb
+        x1 = (bb[2] + bb[0]) / 2
+        y1 = bb[3]
+        x2 = x1 + correction_vector[0]
+        y2 = y1 + correction_vector[1]
+        draw_arrow_from_xy(frame, x1, y1, x2, y2, color=(0, 255, 255))
+        # Draw normalized correction vector
+        # angle = vector_to_angle((x1, y1), correction_vector)
+        # draw_arrow_from_angle(frame, x1, y1, angle, length=10, color=(0, 255, 255))  # yellow
+        return frame
 
     def calculate_correction_vector(self, frame, bb, filtered_lines, current_motion, bb_center_x, trackers_window_width, left_side_tracker_window_margin,
                                     right_tracker_window_margin):
@@ -266,28 +314,7 @@ class CameraMotionEstimator:
             return frame, None
 
         windowed_tracker_bbs = [(line[2] - line[0], line[3] - line[1]) for line in windowed_tracker_lines]
-        avg_vector = (sum(x for x, y in windowed_tracker_bbs) / len(windowed_tracker_bbs), sum(y for x, y in windowed_tracker_bbs) / len(windowed_tracker_bbs))
-
-        # previous method
-        # # Calculate margins so the lines stay on the same side of the vanishing point as the object
-        # if bb_center_x < self.avg_vanishing_point[0]:
-        #     left_x = max(bb_center_x - area_width / 2, 0)
-        #     right_x = min(bb_center_x + area_width / 2, vanishing_point_left_margin_x)
-        # elif bb_center_x >= self.avg_vanishing_point[0]:
-        #     left_x = max(bb_center_x - area_width / 2, vanishing_point_right_margin_x)
-        #     right_x = min(bb_center_x + area_width / 2, self.width)
-        #
-        # lines_over_bb = []
-        # for line in filtered_lines:
-        #     if line[3] < bb[1] and line[2] > left_x and line[2] < right_x:
-        #         lines_over_bb.append(line)
-        #
-        # if not lines_over_bb:
-        #     print("no optical flow lines found!")
-        #     continue
-        #
-        # vectors_over_bb = [(line[2] - line[0], line[3] - line[1]) for line in lines_over_bb]
-        # avg_vector = (sum(x for x, y in vectors_over_bb) / len(vectors_over_bb), sum(y for x, y in vectors_over_bb) / len(vectors_over_bb))
+        avg_vector = (sum(x for x, _ in windowed_tracker_bbs) / len(windowed_tracker_bbs), sum(y for _, y in windowed_tracker_bbs) / len(windowed_tracker_bbs))
 
         # Debug
         self.display_windowed_tracker_lines(frame, bb, left_x, right_x, windowed_tracker_lines)
@@ -299,8 +326,11 @@ class CameraMotionEstimator:
             correction_vector = -avg_vector[0], -avg_vector[1]
         elif current_motion == 'Forward' or current_motion == 'Backward':
             avg_vector_len = np.sqrt(avg_vector[0] ** 2 + avg_vector[1] ** 2)
-            angle = vector_to_angle(bb_center_x, self.avg_vanishing_point[0], bb[3],
-                                    self.avg_vanishing_point[1])  # from center bottom of bb to vanishing point
+            bb_center_y = bb[3]
+            # angle = vector_to_angle((bb_center_x, self.avg_vanishing_point[0]), (bb[3], self.avg_vanishing_point[1]))  # from center bottom of bb to vanishing point
+            angle = vector_to_angle((bb_center_x, bb_center_y),
+                                    (self.avg_vanishing_point[0], self.avg_vanishing_point[1]))  # from center bottom of bb to vanishing point
+
             correction_vector = angle_to_vector(angle, avg_vector_len)
 
         return frame, correction_vector
@@ -326,3 +356,19 @@ class CameraMotionEstimator:
             x1, y1, x2, y2 = line
             # Draw directions
             frame = cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2, tipLength=0.3)
+
+    def display_optical_lines(self, frame, lines):
+        """
+        Display optical flow lines
+        :param frame: src frame
+        :param lines: list of [x1, y1, x2, y2] vectors
+        :return: frame
+        """
+        for line in lines:
+            x1, y1, x2, y2 = line
+            frame = cv2.arrowedLine(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2, tipLength=0.3)
+        return frame
+
+
+    def remove_outliers(self):
+        pass

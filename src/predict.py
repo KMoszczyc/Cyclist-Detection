@@ -314,19 +314,19 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
             draw_example_arrows(frame)
 
             # Get vectors estimating shift for each tracked object on the frame due to camera motion
-            frame, correction_vectors = camera_motion_estimator.update(frame, tracked_bbs)
-            correction_vectors = []
+            frame, correction_vectors, current_motion = camera_motion_estimator.update(frame, tracked_bbs)
+            # correction_vectors = []
             camera_motion_estimation_end_time = time.time()
 
             # Predict Cyclist Trajectory
-            predictions, predictions_split, frame = trajectory_model.predict_trajectory(mot_tracker, correction_vectors, frame)
+            predictions_split, angle_predictions, frame = trajectory_model.predict_trajectory(mot_tracker, correction_vectors, current_motion, frame)
             # predictions_split = []
 
             trajectory_prediction_end_time = time.time()
 
             # normal
             # Update metrics (mAP, timers etc)
-            frame = metrics.update(detections, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
+            frame = metrics.update(detections, predictions_split, angle_predictions, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
                            trajectory_prediction_end_time, frame)
 
             # sort testing
