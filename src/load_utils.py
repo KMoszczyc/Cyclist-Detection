@@ -964,10 +964,11 @@ def display_kitti_tracking_truncated(img_src_dir, labels_src_dir, recording_num,
     #     cv2.waitKey(0)
 
 
-def count_truncated_cyclist_per_recording(labels_src_dir):
+def count_truncated_cyclist_per_recording(labels_src_dir, filtered_recording_nums=['0012', '0019']):
     print('---------------- truncation count ----------------------')
     print('Stats per recoding (21 recordings, from 0000 to 0020)')
     recording_nums = [str(i).zfill(4) for i in range(21)]
+
     truncations = [0, 1, 2]
     df = pd.DataFrame(index=recording_nums)
 
@@ -978,6 +979,11 @@ def count_truncated_cyclist_per_recording(labels_src_dir):
         imgs_with_cyclists = []
 
         for recording_num in recording_nums:
+            if recording_num in filtered_recording_nums:
+                truncated_cyclist_detections.append(0)
+                imgs_with_cyclists.append(0)
+                continue
+
             labels = get_kitti_tracking_labels(labels_src_dir, recording_num)
             truncated_cyclists_labels = [label for label in labels if int(label['truncated']) == truncation]
 
@@ -995,7 +1001,7 @@ def count_truncated_cyclist_per_recording(labels_src_dir):
     print('-------------------------------')
 
 
-def count_occluded_cyclist_per_recording(labels_src_dir):
+def count_occluded_cyclist_per_recording(labels_src_dir, filtered_recording_nums=['0012', '0019']):
     print('---------------- occlusion count ----------------------')
     print('Stats per recoding (21 recordings, from 0000 to 0020)')
     recording_nums = [str(i).zfill(4) for i in range(21)]
@@ -1008,6 +1014,11 @@ def count_occluded_cyclist_per_recording(labels_src_dir):
         imgs_with_cyclists = []
 
         for recording_num in recording_nums:
+            if recording_num in filtered_recording_nums:
+                occluded_cyclist_detections.append(0)
+                imgs_with_cyclists.append(0)
+                continue
+
             labels = get_kitti_tracking_labels(labels_src_dir, recording_num)
             occluded_cyclists_labels = [label for label in labels if int(label['occluded']) == occlusion]
 
@@ -1267,7 +1278,6 @@ def calculate_angle_from_bb(label, recording_num):
 
 def count_cyclists_per_recording(labels_src_dir):
     label_filenames = os.listdir(labels_src_dir)
-
     imgs_with_cyclists = []
     cyclist_detections = []
     imgs_num = len(os.listdir('data/kitti_tracking_data/merged_raw_images'))
@@ -1430,7 +1440,7 @@ def filter_kitti_and_save(labels_src_dir, img_src_dir, dst_dir, test_recording_n
                           truncation_filter='remove', occlusion_filter=True):
     """
      From already filtered labels filter according images, convert labels to yolo .txt files and save them to a dst_dir
-     TODO: fix uneven amount of data
+
     :param labels: Already filtered labels
     :param img_src_dir: path to img src dir
     :param dst_dir: dst dir for labels converted to yolo format and filtered images
@@ -1459,8 +1469,9 @@ def filter_kitti_and_save(labels_src_dir, img_src_dir, dst_dir, test_recording_n
 
     # Filter occluded labels
     training_labels = [label for label in raw_labels if label['recording_num'] not in test_recording_nums]
-    training_label_nums.append(len(raw_labels))
-    training_frame_nums.append(len(raw_labeled_img_names))
+    training_img_names = set([label['image_name'] for label in training_labels])
+    training_label_nums.append(len(training_labels))
+    training_frame_nums.append(len(training_img_names))
 
     if occlusion_filter:
         training_labels = filter_occluded_labels(training_labels)
@@ -1734,3 +1745,7 @@ def vectors_radian_angle_diff(v1, v2):
     a1 = vector_to_angle(v_src, v1)
     a2 = vector_to_angle(v_src, v2)
     return radian_angle_diff(a1, a2)
+
+def calculate_vector_length(v):
+    x, y = v
+    return np.sqrt(x ** 2 + y ** 2)

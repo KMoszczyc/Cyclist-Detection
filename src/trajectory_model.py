@@ -1,5 +1,6 @@
 import numpy as np
 from src.load_utils import transform_bb, draw_arrow_from_m, draw_bb, draw_arrow_from_xy, vector_to_angle, draw_arrow_from_angle
+from src.sort_tracking import Direction
 import cv2
 
 
@@ -55,7 +56,7 @@ class TrajectoryModel:
                 all_bb_predictions_split[i].append(bb)
 
             # Predict current cyclist orientation angle
-            orientation_angle = self.calculate_cyclist_orientation_angle(tracker, current_pos, bb_center_predictions, correction_vectors)
+            orientation_angle = self.calculate_cyclist_orientation_angle(tracker, current_pos, bb_center_predictions, correction_vectors, widths, heights)
             averaged_orientation_angle = self.calculate_average_orientation_angle(tracker, orientation_angle)
             angle_pred = [current_pos[0], current_pos[1], averaged_orientation_angle]
             angle_predictions.append(angle_pred)
@@ -137,7 +138,7 @@ class TrajectoryModel:
 
         return pred_x, pred_y
 
-    def calculate_cyclist_orientation_angle(self, tracker, current_pos, pred_centers, correction_vectors):
+    def calculate_cyclist_orientation_angle(self, tracker, current_pos, pred_centers, correction_vectors, bb_widths, bb_heights):
         """
         Calcylate cyclist direction angle in radians combining the predicted position from the sort trackers and from the camera motion correction vectors
         :param tracker: Sort object tracker
@@ -148,6 +149,10 @@ class TrajectoryModel:
         """
         # 1st prediction is pointing to the next frame, just like the correction vector
         pred_x, pred_y = pred_centers[0]
+        bb_sizes = [width * height for width, height in zip(bb_widths, bb_heights)]
+
+        # check whether cyclist's bb is getting bigger or smaller there
+
 
         correction_vector_temp = [vector['vector'] for vector in correction_vectors if tracker.id == vector['id']]
         if correction_vector_temp and correction_vector_temp[0]:
@@ -156,6 +161,9 @@ class TrajectoryModel:
             pred_y = pred_y + correction_vector[1]
 
         return vector_to_angle(current_pos, (pred_x, pred_y))
+
+
+
 
     def m_to_xy(self, x1, y1, m, b, dist, direction):
         x2 = x1 + dist * direction

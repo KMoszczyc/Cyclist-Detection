@@ -53,10 +53,10 @@ if __name__ == '__main__':
 
     # Cyclist counts per recordings
     # count_cyclists_per_recording_yolo('data/kitti_tracking_data/merged_not_occluded_filtered_cut_416')
-
+    #
     # count_cyclists_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
-    # count_truncated_cyclist_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
-    # count_occluded_cyclist_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training')
+    # count_truncated_cyclist_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training', filtered_recording_nums=['0012', '0019'])
+    # count_occluded_cyclist_per_recording('data/kitti_tracking_data/raw/data_tracking_label_2/training', filtered_recording_nums=['0012', '0019'])
 
     # transform_tracking_calib_files('data/kitti_tracking_data/raw/data_tracking_calib/training/calib','data/kitti_tracking_data/raw/calib_formatted')
     # display_tracking_img('data/kitti_tracking_data/merged_raw', 'data/kitti_tracking_data/raw/data_tracking_label_2/training', '0020')
@@ -87,9 +87,9 @@ if __name__ == '__main__':
     nms_threshold = 0.5
 
     # predict_video_from_frames_yolo(src_frames_dir,src_labels_dir,recording_nums, output_video_path, yolov4_weights_path, config_path, model_type='yolov4')
-    predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, yolov7_weights_path, config_path, model_type='yolov7',
-                                   conf_threshold=conf_threshold, nms_threshold=nms_threshold, max_age=5, min_hits=2,
-                                   sort_iou_threshold=0.5, show_frames=True, debug=False)
+    # predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, yolov7_weights_path, config_path, model_type='yolov7',
+    #                                conf_threshold=conf_threshold, nms_threshold=nms_threshold, max_age=5, min_hits=2,
+    #                                sort_iou_threshold=0.5, show_frames=True, debug=False)
 
     # predict_video(input_video_path, output_video_path)
     # predict_video_yolov4_deepsort(input_video_path, output_video_path)
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     # display_random_img('data/kitti_tracking_data/merged_cut_416', 'data/kitti_tracking_data/merged_cut_416', is_yolo=True, is_raw_kitti=False)
 
     # Occlutions 0 and 1 are fine, 2 and 3 are too big (remove from training data)
-    # display_kitti_tracking_occluded(src_frames_dir, src_labels_dir, '0002', 1)
+    display_kitti_tracking_occluded(src_frames_dir, src_labels_dir, '0004', 3)
 
     # filter_images_by_labels(src_frames_dir, 'data/kitti_tracking_data/merged', 'data/kitti_tracking_data/merged')
 
@@ -124,6 +124,7 @@ if __name__ == '__main__':
     # -----------------Truncated & occluded preprocessing - SAVE KITI to training dataset ---------------------
     dst_path = 'data/kitti_tracking_data/training/training_balanced_truncations_cut_0012_0019'
     # filter_kitti_and_save(src_labels_dir, src_frames_dir, dst_path, test_recording_nums=['0012', '0019'], balance_dataset=True, truncation_filter='cut', occlusion_filter=True)
+
     # display_random_img(dst_path, dst_path, is_yolo=True, is_raw_kitti=False)
     # display_cutting_truncated_labels(src_labels_dir, src_frames_dir)
 

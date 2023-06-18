@@ -68,3 +68,6 @@ angle_diff_radian = radian_angle_diff(a1, a2)
 angle_diff_degrees = radians_to_degrees(angle_diff_radian)
 
 print('vectors:', v1, v2, 'angles:', a1, a2, 'angle diff:', angle_diff_radian, angle_diff_degrees)
+
+xs = [10, 1, 3, 10, 4, 6, 12, 1]
+print('std', np.std(xs))
