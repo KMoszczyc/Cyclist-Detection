@@ -20,6 +20,8 @@ root_dir = Path(__file__).parent.parent
 # recording_nums = ['0013', '0019']
 # recording_nums = ['0015']
 recording_nums = ['0012', '0019']
+# recording_nums = ['0013']
+
 
 print(root_dir)
 
@@ -138,6 +140,88 @@ def test_object_tracking():
     df_default.to_csv(os.path.join(root_dir, f'results/tests/object_tracking/{parameter}.csv'))
     df_coco.to_csv(os.path.join(root_dir, f'results/tests/object_tracking/{parameter}_coco.csv'))
 
+def test_max_num_of_past_bbs_for_avg_distance():
+    # max_age=5, min_hits=3, iou_threshold=0.3 - default
+    max_num_of_past_bbs_for_avg_distances = [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    # max_num_of_past_bbs_for_avg_distances = [2, 3, 8]
+
+    parameter = 'max_num_of_past_bbs_for_avg_distance'
+    index = max_num_of_past_bbs_for_avg_distances
+
+    df_default = pd.DataFrame(columns=['mAP50', 'mAP50_95', 'Precision', 'Recall', 'F1_score', 'Angle MAE', 'Angle RMSE'], index=index)
+
+    for value in index:
+        final_maps, coco_summary = predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, yolov7_weights_path, config_path, model_type='yolov7',
+                               conf_threshold=0.7, nms_threshold=0.4, max_age=5, min_hits=2,
+                               sort_iou_threshold=0.5, angle_momentum=0.5, max_num_of_past_bbs_for_direction=3,
+                               max_num_of_past_bbs_for_avg_distance=value, show_frames=True, debug=False)
+
+        df_default.loc[value, :] = final_maps
+
+        print(df_default.head(20))
+    df_default.to_csv(os.path.join(root_dir, f'results/tests/trajectory_prediction/{parameter}.csv'))
+
+def test_max_num_of_past_bbs_for_direction():
+    # max_age=5, min_hits=3, iou_threshold=0.3 - default
+    max_num_of_past_bbs_for_direction = [2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+    parameter = 'max_num_of_past_bbs_for_direction'
+    index = max_num_of_past_bbs_for_direction
+
+    df_default = pd.DataFrame(columns=['mAP50', 'mAP50_95', 'Precision', 'Recall', 'F1_score', 'Angle MAE', 'Angle RMSE'], index=index)
+
+    for value in index:
+        final_maps, coco_summary = predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, yolov7_weights_path, config_path, model_type='yolov7',
+                               conf_threshold=0.7, nms_threshold=0.4, max_age=5, min_hits=2,
+                               sort_iou_threshold=0.5, angle_momentum=0.5, max_num_of_past_bbs_for_direction=value,
+                               max_num_of_past_bbs_for_avg_distance=2, show_frames=True, debug=False)
+
+        df_default.loc[value, :] = final_maps
+
+        print(df_default.head(20))
+    df_default.to_csv(os.path.join(root_dir, f'results/tests/trajectory_prediction/{parameter}.csv'))
+
+def test_correction_vector_weight():
+    # max_age=5, min_hits=3, iou_threshold=0.3 - default
+    correction_vector_weights = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+
+
+    parameter = 'correction_vector_weight'
+    index = correction_vector_weights
+
+    df_default = pd.DataFrame(columns=['mAP50', 'mAP50_95', 'Precision', 'Recall', 'F1_score', 'Angle MAE', 'Angle RMSE'], index=index)
+
+    for value in index:
+        final_maps, coco_summary = predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, yolov7_weights_path, config_path, model_type='yolov7',
+                               conf_threshold=0.7, nms_threshold=0.4, max_age=5, min_hits=2,
+                               sort_iou_threshold=0.5, angle_momentum=0.5, max_num_of_past_bbs_for_direction=5,
+                               max_num_of_past_bbs_for_avg_distance=2, correction_vector_weight=value, show_frames=True, debug=False)
+
+        df_default.loc[value, :] = final_maps
+
+        print(df_default.head(20))
+    df_default.to_csv(os.path.join(root_dir, f'results/tests/trajectory_prediction/{parameter}.csv'))
+
+def test_angle_momentum():
+    # max_age=5, min_hits=3, iou_threshold=0.3 - default
+    angle_momentums = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+
+
+    parameter = 'angle_momentum_0013'
+    index = angle_momentums
+
+    df_default = pd.DataFrame(columns=['mAP50', 'mAP50_95', 'Precision', 'Recall', 'F1_score', 'Angle MAE', 'Angle RMSE'], index=index)
+
+    for value in index:
+        final_maps, coco_summary = predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, yolov7_weights_path, config_path, model_type='yolov7',
+                               conf_threshold=0.7, nms_threshold=0.4, max_age=5, min_hits=2,
+                               sort_iou_threshold=0.5, angle_momentum=value, max_num_of_past_bbs_for_direction=5,
+                               max_num_of_past_bbs_for_avg_distance=2, show_frames=True, debug=False)
+
+        df_default.loc[value, :] = final_maps
+
+        print(df_default.head(20))
+    df_default.to_csv(os.path.join(root_dir, f'results/tests/trajectory_prediction/{parameter}.csv'))
 
 def merge_image_scaling_tests():
     """

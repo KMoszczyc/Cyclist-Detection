@@ -235,25 +235,25 @@ class CameraMotionEstimator:
         self.right_motion_lines = [motion_line for motion_line in motion_lines if motion_line.side == Side.RIGHT]
 
         # Display all lines for debugging - red
-        frame = self.display_optical_lines(frame, self.left_motion_lines, color=(0, 0, 255))
-        frame = self.display_optical_lines(frame, self.right_motion_lines, color=(0, 0, 255))
+        # frame = self.display_optical_lines(frame, self.left_motion_lines, color=(0, 0, 255))
+        # frame = self.display_optical_lines(frame, self.right_motion_lines, color=(0, 0, 255))
 
         # Filter outlier motion lines based on length standard deviation, split both for left and right side, so keep ~68.2% of the motion lines
-        print('raw left len', len(self.left_motion_lines), 'right', len(self.right_motion_lines))
+        # print('raw left len', len(self.left_motion_lines), 'right', len(self.right_motion_lines))
         self.calculate_avg_vectors(self.left_motion_lines, self.right_motion_lines)
         self.left_motion_lines = [motion_line for motion_line in self.left_motion_lines if
                                   np.abs(motion_line.v_length - self.left_avg_motion_vector_len) < self.left_len_std*2]
         self.right_motion_lines = [motion_line for motion_line in self.right_motion_lines if
                                    np.abs(motion_line.v_length - self.right_avg_motion_vector_len) < self.right_len_std*2]
         self.calculate_avg_vectors(self.left_motion_lines, self.right_motion_lines)
-        print('after filtering, left len', len(self.left_motion_lines), 'right', len(self.right_motion_lines))
+        # print('after filtering, left len', len(self.left_motion_lines), 'right', len(self.right_motion_lines))
 
         # Display all filtered lines for debugging - green, so it covers the red ones
-        frame = self.display_optical_lines(frame,  self.left_motion_lines , color=(0, 255, 0))
-        frame = self.display_optical_lines(frame, self.right_motion_lines, color=(0, 255, 0))
+        # frame = self.display_optical_lines(frame,  self.left_motion_lines , color=(0, 255, 0))
+        # frame = self.display_optical_lines(frame, self.right_motion_lines, color=(0, 255, 0))
 
-        min_vector_len = 1
-        if self.total_avg_motion_vector_len < min_vector_len:
+        min_vector_len = 0.3
+        if self.left_avg_motion_vector_len < min_vector_len and self.right_avg_motion_vector_len < min_vector_len:
             self.current_motion = Motion.NONE
         elif self.left_avg_motion_vector[0] > 0 and self.right_avg_motion_vector[0] > 0:
             self.current_motion = Motion.LEFT
@@ -355,7 +355,7 @@ class CameraMotionEstimator:
         elif bb_side == Side.RIGHT:
             relative_bb_center_x = (bb_center_x - self.width / 2) / (self.width / 2)
 
-        correction_vector_weight = relative_bb_center_x
+        correction_vector_weight = relative_bb_center_x*2
         return correction_vector_weight
 
     def calculate_avg_vectors(self, left_motion_lines, right_motion_lines):

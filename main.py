@@ -18,7 +18,8 @@ import os
 import cv2
 import random
 from src.test import test_yolov4_confidence_thresholds, test_yolov4_nms_thresholds, test_yolov7_confidence_thresholds, test_object_tracking, \
-    test_yolov7_nms_thresholds, merge_image_scaling_tests, calculate_best_map_from_wandb_valid_csvs
+    test_yolov7_nms_thresholds, merge_image_scaling_tests, calculate_best_map_from_wandb_valid_csvs, test_max_num_of_past_bbs_for_avg_distance, \
+    test_max_num_of_past_bbs_for_direction, test_angle_momentum, test_correction_vector_weight
 
 # KITTI TRACKING RAW img widths and heights - {1224, 1241, 1242, 1238} {376, 370, 374, 375}
 TRAIN_IMAGES_DIR = 'data_raw/images/training/'
@@ -80,16 +81,20 @@ if __name__ == '__main__':
     src_labels_dir = 'data/kitti_tracking_data/raw/data_tracking_label_2/training'
 
     recording_nums = ['0012', '0019']
-    # recording_nums = ['0015']
+    # recording_nums = ['0013']
 
     output_video_path = f'results/results_videos/yolov4_sort_kitti_valid.mp4'
     conf_threshold = 0.7
-    nms_threshold = 0.5
+    nms_threshold = 0.4
+    max_age = 5
+    min_hits = 2
+    sort_iou_threshold = 0.5
 
     # predict_video_from_frames_yolo(src_frames_dir,src_labels_dir,recording_nums, output_video_path, yolov4_weights_path, config_path, model_type='yolov4')
     # predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, yolov7_weights_path, config_path, model_type='yolov7',
-    #                                conf_threshold=conf_threshold, nms_threshold=nms_threshold, max_age=5, min_hits=2,
-    #                                sort_iou_threshold=0.5, show_frames=True, debug=False)
+    #                                conf_threshold=conf_threshold, nms_threshold=nms_threshold, max_age=max_age, min_hits=min_hits,
+    #                                sort_iou_threshold=sort_iou_threshold, angle_momentum=0.3, max_num_of_past_bbs_for_direction=5,
+    #                                max_num_of_past_bbs_for_avg_distance=2, show_frames=True, debug=False)
 
     # predict_video(input_video_path, output_video_path)
     # predict_video_yolov4_deepsort(input_video_path, output_video_path)
@@ -114,7 +119,7 @@ if __name__ == '__main__':
     # display_random_img('data/kitti_tracking_data/merged_cut_416', 'data/kitti_tracking_data/merged_cut_416', is_yolo=True, is_raw_kitti=False)
 
     # Occlutions 0 and 1 are fine, 2 and 3 are too big (remove from training data)
-    display_kitti_tracking_occluded(src_frames_dir, src_labels_dir, '0004', 3)
+    # display_kitti_tracking_occluded(src_frames_dir, src_labels_dir, '0004', 3)
 
     # filter_images_by_labels(src_frames_dir, 'data/kitti_tracking_data/merged', 'data/kitti_tracking_data/merged')
 
@@ -127,13 +132,10 @@ if __name__ == '__main__':
 
     # display_random_img(dst_path, dst_path, is_yolo=True, is_raw_kitti=False)
     # display_cutting_truncated_labels(src_labels_dir, src_frames_dir)
-
     # print('filtered_labels:', len(filtered_labels))
     # display_kitti_tracking_truncated(src_frames_dir, src_labels_dir, '0002', 1)
     # resize_images('data/kitti_tracking_data/merged/merged_not_occluded_truncated_raw', 'data/kitti_tracking_data/training/merged_not_occluded_truncated_cut_640', 640,
     #               square_img=True, cut_img_flag=True)
-
-
 
     # Tsinghua
     tsinghua_img_train_dir = 'data/data_raw_tsinghua/raw_images/train_images/leftImg8bit/train/tsinghuaDaimlerDataset'
@@ -178,7 +180,6 @@ if __name__ == '__main__':
     # count_yolo_labels(tsinghua_yolo_label_test_dir)
     # count_yolo_labels(tsinghua_yolo_large_label_test_dir)
 
-
     # --------------------------------------------------------------------------------------
     # Create test dataset
     # images_to_test_dataset(src_frames_dir, src_labels_dir, 'data/kitti_tracking_data/test/raw_test_0012_0013', ['0012', '0013'])
@@ -202,8 +203,14 @@ if __name__ == '__main__':
     # parse_yolov7_test_map_output('results/yolov7_colab_map_tests/data_augmentation/yolov7x_default_scale_0.9_mosaic.txt')
     # parse_yolov7_test_map_output('results/yolov7_colab_map_tests/data_augmentation/yolov7x_default_scale_0.9_no_mosaic.txt')
 
+    #  -------- test Trajectory Prediction params ---------------
+    # test_max_num_of_past_bbs_for_avg_distance()
+    # test_max_num_of_past_bbs_for_direction()
+    test_correction_vector_weight()
+    # test_angle_momentum()
+
+
+    # ----------------------------------------------------
     # parse_yolov7_test_map_output('results/yolov7_colab_map_tests/yolov7/yolov7_scale_0.9_mosaic.txt', 'yolov7')
-
     # merge_image_scaling_tests()
-
     # calculate_best_map_from_wandb_valid_csvs()

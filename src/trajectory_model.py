@@ -9,15 +9,19 @@ class TrajectoryModel:
     A simple cyclist trajectory prediction model
     """
 
-    def __init__(self, image_width, image_height, debug):
+    def __init__(self, image_width, image_height, debug, angle_momentum=0.5, max_num_of_past_bbs_for_direction=3, max_num_of_past_bbs_for_avg_distance=3, correction_vector_weight=0.5):
         self.tracked_bbs = []
         self.raw_predictions = []
         self.predict_steps = [1, 3, 10]  # predict values for the next 1, 3 and 10 frames
         self.image_width = image_width
         self.image_height = image_height
-        self.max_num_of_past_bbs = 3
+        # self.max_num_of_past_bbs = 3
+        self.max_num_of_past_bbs_for_direction = max_num_of_past_bbs_for_direction  # specyfies how many past bounding boxes to use in the polynomial
+        self.max_num_of_past_bbs_for_avg_distance = max_num_of_past_bbs_for_avg_distance # specyfies how many past bounding boxes to use in the polynomial
         self.debug = debug
-        self.angle_momentum = 0.5
+        self.angle_momentum = angle_momentum
+        self.correction_vector_weight = correction_vector_weight
+
 
     def predict_trajectory(self, mot_tracker, correction_vectors, current_motion, frame):
         all_bb_predictions = []
@@ -31,11 +35,15 @@ class TrajectoryModel:
 
         for tracker in filered_trackers:
             history_len = len(tracker.observed_history)
-            num_of_past_bbs = min(history_len, self.max_num_of_past_bbs)  # at last of 5 tracker positions
-            if num_of_past_bbs < 2:
+
+            num_of_past_bbs_for_direction = min(history_len, self.max_num_of_past_bbs_for_direction)
+            num_of_past_bbs_for_avg_distance = min(history_len, self.max_num_of_past_bbs_for_avg_distance)
+            max_num_of_past_bbs = max(num_of_past_bbs_for_direction, num_of_past_bbs_for_avg_distance)
+
+            if max_num_of_past_bbs < 2:
                 continue
 
-            center_xs, center_ys, widths, heights, scores = zip(*[transform_bb(bb) for bb in tracker.observed_history[-num_of_past_bbs:]])
+            center_xs, center_ys, widths, heights, scores = zip(*[transform_bb(bb) for bb in tracker.observed_history[-max_num_of_past_bbs:]])
             current_pos = (center_xs[-1], center_ys[-1])
 
             # Interpolate future bb width and height from previous bbs - unstable and prone to noise
@@ -48,7 +56,7 @@ class TrajectoryModel:
             bb_scores = [scores[-1]] * 3
 
             # Predict future positions
-            bb_center_predictions = self.predict_bb_centers(frame, tracker, center_xs, center_ys, correction_vectors, num_of_past_bbs)
+            bb_center_predictions = self.predict_bb_centers(frame, tracker, center_xs, center_ys, correction_vectors, num_of_past_bbs_for_direction, num_of_past_bbs_for_avg_distance)
             bb_preds = self.center_w_h_to_bbs(bb_center_predictions, bb_width_predictions, bb_height_predictions, bb_scores)
             bb_preds = [self.truncate_bb(bb) for bb in bb_preds]
             all_bb_predictions.append(bb_preds)
@@ -62,7 +70,7 @@ class TrajectoryModel:
             angle_predictions.append(angle_pred)
 
             self.debug_draw(frame, center_xs, center_ys, bb_width_predictions, bb_height_predictions, bb_center_predictions, bb_preds, bb_scores, angle_pred,
-                            num_of_past_bbs)
+                            max_num_of_past_bbs)
 
         return all_bb_predictions_split, angle_predictions, frame
 
@@ -80,7 +88,7 @@ class TrajectoryModel:
         else:
             weighted_avg_angle = orientation_angle
 
-        print('angles:', tracker.last_angle, orientation_angle, weighted_avg_angle)
+        # print('angles:', tracker.last_angle, orientation_angle, weighted_avg_angle)
         tracker.last_angle = weighted_avg_angle
         return weighted_avg_angle
 
@@ -107,10 +115,10 @@ class TrajectoryModel:
         #     draw_bb(frame, bb_preds[2])
 
         # Draw prediction bbs for next: 1, 3, 10 frames
-        # for bb in bb_preds:
-        #     if not bb:
-        #         continue
-        #     draw_bb(frame, bb)
+        for bb in bb_preds:
+            if not bb:
+                continue
+            draw_bb(frame, bb)
 
         # Draw prediction circles for next: 1, 3, 10 frames
         for x, y in bb_center_predictions:
@@ -118,15 +126,18 @@ class TrajectoryModel:
             # draw_arrow_from_xy(frame, center_xs[-1], center_ys[-1], center[0], center[1])
         return frame
 
-    def predict_bb_centers(self, frame, tracker, center_xs, center_ys, correction_vectors, num_of_past_bbs):
+    def predict_bb_centers(self, frame, tracker, center_xs, center_ys, correction_vectors, num_of_past_bbs_for_direction, num_of_past_bbs_for_avg_distance):
         direction = 1 if center_xs[-1] - center_xs[0] > 0 else -1
 
         # calculate mean dist x per step. We divide it by nu of past bbs - 1, because for example, if there were 5 center points, then to the 5th point we took 4 steps only.
-        mean_dist_x = np.abs(center_xs[-1] - center_xs[0]) / (num_of_past_bbs - 1)
+        mean_dist_x = np.abs(center_xs[-1] - center_xs[-num_of_past_bbs_for_avg_distance]) / (num_of_past_bbs_for_avg_distance - 1)
 
-        m, b = np.polyfit(center_xs, center_ys, 1)
+        m, b = np.polyfit(center_xs[-num_of_past_bbs_for_direction:], center_ys[-num_of_past_bbs_for_direction:], 1)
         pred_centers = [self.predict_next_bb_center(frame, tracker, center_xs, center_ys, correction_vectors, m, b, mean_dist_x, direction, step) for step in
                         self.predict_steps]
+
+        # print('num_of_past_bbs_for_direction:', num_of_past_bbs_for_direction, 'num_of_past_bbs_for_avg_distance', num_of_past_bbs_for_avg_distance)
+        # print(center_xs, center_xs[-num_of_past_bbs_for_direction:])
 
         # print('Raw pred:', pred_x, pred_y, '\tCorrection vector:', correction_vector, '\tCorrected pred:', corrected_pred_x, corrected_pred_y)
         # cv2.arrowedLine(frame, (int(center_xs[-1]), int(center_ys[-1])), (int(corrected_pred_x), int(corrected_pred_y)), (0, 255, 255), 2,
@@ -151,14 +162,12 @@ class TrajectoryModel:
         pred_x, pred_y = pred_centers[0]
         bb_sizes = [width * height for width, height in zip(bb_widths, bb_heights)]
 
-        # check whether cyclist's bb is getting bigger or smaller there
-
-
+        # Apply camera motion correction vectors
         correction_vector_temp = [vector['vector'] for vector in correction_vectors if tracker.id == vector['id']]
         if correction_vector_temp and correction_vector_temp[0]:
             correction_vector = correction_vector_temp[0]
-            pred_x = pred_x + correction_vector[0]
-            pred_y = pred_y + correction_vector[1]
+            pred_x = pred_x + correction_vector[0] * self.correction_vector_weight
+            pred_y = pred_y + correction_vector[1] * self.correction_vector_weight
 
         return vector_to_angle(current_pos, (pred_x, pred_y))
 

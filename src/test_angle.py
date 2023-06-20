@@ -52,6 +52,31 @@ def radians_to_degrees(angle):
     """
     return math.degrees(angle)
 
+def calculate_absolute_diff_for_angles(self, angle1, angle2):
+    """
+    Calculate Mean Absolute Error between 2 angles
+    :param x: angle x in radians
+    :param y: angle y in radians
+    :return: difference in radians
+    """
+    return min([angle2 - angle1, angle2 - angle1 + 2 * math.pi, angle2 - angle1 - 2 * math.pi], key=abs)
+def calculate_squared_error_for_angles(angle1, angle2):
+    """
+    Calculate Root Mean Squared Error between 2 angles
+    :param x: angle x in radians
+    :param y: angle y in radians
+    :return: difference in radians
+    """
+    return min((angle2 - angle1) ** 2, (angle2 - angle1 + 2 * math.pi) ** 2, (angle2 - angle1 - 2 * math.pi) ** 2, key=abs)
+
+def squared_error_deg(angle1, angle2):
+    angle1_deg = math.degrees(angle1)
+    angle2_deg = math.degrees(angle2)
+    return min((angle2_deg - angle1_deg) ** 2, (angle2_deg - angle1_deg + 360) ** 2, (angle2_deg - angle1_deg - 360) ** 2, key=abs)
+
+l1 = [(10, 10), (-3, 5), (-1, 3)]
+l2 = [(-3, 5), (-2, 5), (1, 2)]
+
 pi = math.pi
 
 # x = pi*4/5
@@ -61,13 +86,34 @@ v_src = 0, 0
 v1 = -1, 10
 v2 = -1, 3
 
-a1 = vector_to_angle(v_src, v1)
-a2 = vector_to_angle(v_src, v2)
+mae_list = []
+rmse_list = []
+rmse_degrees_list = []
 
-angle_diff_radian = radian_angle_diff(a1, a2)
-angle_diff_degrees = radians_to_degrees(angle_diff_radian)
+for v1, v2 in zip(l1, l2):
+    a1 = vector_to_angle(v_src, v1)
+    a2 = vector_to_angle(v_src, v2)
 
-print('vectors:', v1, v2, 'angles:', a1, a2, 'angle diff:', angle_diff_radian, angle_diff_degrees)
+    mae_radian = radian_angle_diff(a1, a2)
+    rmse_radian = calculate_squared_error_for_angles(a1, a2)
+    rmse_degrees = squared_error_deg(a1, a2)
+
+    mae_list.append(mae_radian)
+    rmse_list.append(rmse_radian)
+    rmse_degrees_list.append(rmse_degrees)
+
+mae_radian_avg = sum(mae_list)/len(mae_list)
+rmse_radian_avg = np.sqrt(sum(rmse_list)/len(rmse_list))
+rmse_degrees_avg_v2 = np.sqrt(sum(rmse_degrees_list)/len(rmse_list))
+
+
+mae_degrees_avg = radians_to_degrees(mae_radian_avg)
+rmse_degrees_avg = radians_to_degrees(rmse_radian_avg)
+
+print('mae:', mae_radian_avg, mae_degrees_avg, 'rmse:', rmse_radian_avg, rmse_degrees_avg, 'rmse_degrees_avg_v2', rmse_degrees_avg_v2)
 
 xs = [10, 1, 3, 10, 4, 6, 12, 1]
 print('std', np.std(xs))
+
+l = [1, 2, 3, 4, 5, 6, 7]
+print(l[-3:])

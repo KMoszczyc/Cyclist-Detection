@@ -7,7 +7,7 @@ from mean_average_precision import MetricBuilder
 from src.review_object_detection_metrics.src.evaluators.coco_evaluator import get_coco_summary, get_coco_metrics
 from src.review_object_detection_metrics.src.bounding_box import BoundingBox
 from src.review_object_detection_metrics.src.utils.enumerators import BBFormat, CoordinatesType, BBType
-from src.load_utils import radian_angle_diff, radians_to_degrees, vectors_radian_angle_diff
+from src.load_utils import radians_to_degrees, vectors_radian_angle_diff
 import math
 
 class Metrics:
@@ -31,6 +31,8 @@ class Metrics:
         self.default_metrics = {}
         self.coco_summary = {}
         self.trajectory_metric_summary = []
+        self.trajectory_metric_avg_summary = []
+
         self.debug = debug
 
         print('labels num:', len(self.labels))
@@ -50,7 +52,7 @@ class Metrics:
             self.predictions[i].append(self.preds_to_map_format(predictions, self.yolo_preds_to_map_format))
         self.angle_predictions.append(angle_predictions)
 
-        print(f'------------------------- {self.total_frame_counter} -------------------------')
+        # print(f'------------------------- {self.total_frame_counter} -------------------------')
         # print(yolo_predictions)
         # print(angle_predictions)
 
@@ -99,21 +101,51 @@ class Metrics:
         if self.frame_counter == self.num_of_frames - 1:
             self.calculate_final_map(self.yolo_predictions)
 
-            print('------------------- step 1 ------------------')
-            self.calculate_final_map(self.predictions[0], step=1)
-            print('------------------- step 3 ------------------')
-            self.calculate_final_map(self.predictions[1], step=3)
-            print('------------------- step 10 ------------------')
-            self.calculate_final_map(self.predictions[2], step=10)
-
-            self.evaluate_angle_predictions()
-            self.print_trajectory_metric_summary()
+            # print('------------------- step 1 ------------------')
+            # self.calculate_final_map(self.predictions[0], step=1)
+            # print('------------------- step 3 ------------------')
+            # self.calculate_final_map(self.predictions[1], step=3)
+            # print('------------------- step 10 ------------------')
+            # self.calculate_final_map(self.predictions[2], step=10)
+            #
+            # self.evaluate_angle_predictions()
+            # self.print_trajectory_metric_summary()
             # self.calculate_final_map_v2() # more official metric repo
+
+            self.calculate_final_trajectory_metrics()
+
 
         self.metric_counter += 1
         self.frame_counter += 1
         self.total_frame_counter += 1
         return frame
+
+    def calculate_final_trajectory_metrics(self):
+        # df = pd.DataFrame(columns=['mAP50', 'mAP50_95', 'Precision', 'Recall', 'F1_score'], index=index)
+
+        print('------------------- step 1 ------------------')
+        self.calculate_final_map(self.predictions[0], step=1, trajectory_prediction=True)
+        print('------------------- step 3 ------------------')
+        self.calculate_final_map(self.predictions[1], step=3, trajectory_prediction=True)
+        print('------------------- step 10 ------------------')
+        self.calculate_final_map(self.predictions[2], step=10, trajectory_prediction=True)
+
+        self.trajectory_metric_avg_summary = self.dict_mean(self.trajectory_metric_summary)
+        angle_mae, angle_rmse = self.evaluate_angle_predictions()
+
+        self.trajectory_metric_avg_summary['Angle MAE'] = angle_mae
+        self.trajectory_metric_avg_summary['Angle RMSE'] = angle_rmse
+
+        self.trajectory_metric_avg_summary.pop('step')
+
+        # print( self.trajectory_metric_avg_summary)
+
+
+    def dict_mean(self, dict_list):
+        mean_dict = {}
+        for key in dict_list[0].keys():
+            mean_dict[key] = sum(d[key] for d in dict_list) / len(dict_list)
+        return mean_dict
 
     def show_future_labels(self, frame, step):
         labels_formatted = np.array([self.label_to_bb(label) for label in self.labels if int(label['frame']) == self.total_frame_counter + step])
@@ -235,21 +267,33 @@ class Metrics:
         print(f"{self.coco_summary['AP50']} & {self.coco_summary['AP']} & {precision} & {recall} & {f1_score}")
 
     def evaluate_angle_predictions(self):
-        angle_diffs = []
+        """Calculate mean absolute error for orientation angle estimation"""
+
+        abs_angle_diffs = []
+        sqr_angle_diffs = []
         for i, angle_preds in enumerate(self.angle_predictions):
             labels = [label for label in self.labels if int(label['frame']) == i]
-            print('frame:', i, 'labels_num:', len(labels), angle_preds)
+            # print('frame:', i, 'labels_num:', len(labels), angle_preds)
 
-            angle_diffs += self.calculate_angle_diffs(angle_preds, labels)
+            abs_angle_diff, sqr_angle_diff = self.calculate_angle_diffs(angle_preds, labels)
+            abs_angle_diffs += abs_angle_diff
+            sqr_angle_diffs += sqr_angle_diff
 
-        avg_angle_radian_error = sum(angle_diffs) / len(angle_diffs)
-        avg_angle_degrees_error = radians_to_degrees(avg_angle_radian_error)
+        mae_radian_avg = sum(abs_angle_diffs) / len(abs_angle_diffs)
+        rmse_radian_avg = np.sqrt(sum(sqr_angle_diffs) / len(sqr_angle_diffs))
+
+        mae_degrees_avg = radians_to_degrees(mae_radian_avg)
+        rmse_degrees_avg = radians_to_degrees(rmse_radian_avg)
 
         print('-------------------- Evaluate orientation angle diffs --------------------')
-        print('lengths matching?', len(self.angle_predictions), len(angle_diffs), len(self.labels))
-        print('angle_diffs', angle_diffs)
-        print('avg angle radian error:', avg_angle_radian_error)
-        print('avg angle degrees error:', avg_angle_degrees_error)
+        print('lengths matching?', len(self.angle_predictions), len(abs_angle_diffs), len(self.labels))
+        print('abs_angle_diffs', abs_angle_diffs)
+        print('sqr_angle_diffs', sqr_angle_diffs)
+
+        print('mae_degrees_avg:', mae_degrees_avg)
+        print('rmse_degrees_avg:', rmse_degrees_avg)
+
+        return mae_degrees_avg, rmse_degrees_avg
 
     def calculate_angle_diffs(self, angle_preds, labels):
         """
@@ -259,7 +303,9 @@ class Metrics:
         :return: angle_diffs
         """
 
-        angle_diffs = []
+        abs_angle_diffs = []
+        sqr_angle_diffs = []
+
         for angle_pred in angle_preds:
             pred_center_x, pred_center_y, angle = angle_pred
             closest_label = None
@@ -275,11 +321,14 @@ class Metrics:
 
             # check if angle pred center is inside the label's bounding box
             if closest_label and (pred_center_x>closest_label['left'] and pred_center_x<closest_label['right'] and pred_center_y>closest_label['top'] and pred_center_y<closest_label['bottom']):
-                print('pred_angle:', angle,'gt angle', closest_label['bb_angle'], 'dist sqr:', min_dist_sqr)
+                # print('pred_angle:', angle,'gt angle', closest_label['bb_angle'], 'dist sqr:', min_dist_sqr)
 
-                angle_diff = radian_angle_diff(angle, closest_label['bb_angle'])
-                angle_diffs.append(angle_diff)
-        return angle_diffs
+                abs_angle_diff = self.calculate_absolute_diff_for_angles(angle, closest_label['bb_angle'])
+                sqr_angle_diff = self.calculate_squared_diff_for_angles(angle, closest_label['bb_angle'])
+                abs_angle_diffs.append(abs_angle_diff)
+                sqr_angle_diffs.append(sqr_angle_diff)
+
+        return abs_angle_diffs, sqr_angle_diffs
 
 
 
@@ -372,12 +421,20 @@ class Metrics:
         df.to_csv('results/tests/trajectory_prediction/final_results.csv')
 
 
-    def radian_angle_diff(self, x, y):
+    def calculate_absolute_diff_for_angles(self, x, y):
         """
-        Calculate difference between 2 radian angles in radians
+        Calculate absolute diff between 2 angles, later used in calculating Mean Absolute Error
         :param x: angle x in radians
         :param y: angle y in radians
         :return: difference in radians
         """
-        return min(y - x, y - x + 2 * math.pi, y - x - 2 * math.pi, key=abs)
-
+        # return min(angle2 - angle1, angle2 - angle1 + 2 * math.pi, angle2 - angle1 - 2 * math.pi, key=abs)
+        return np.abs(min(y - x, y - x + 2 * math.pi, y - x - 2 * math.pi, key=abs))
+    def calculate_squared_diff_for_angles(self, angle1, angle2):
+        """
+        Calculate squared diff between 2 angles, later used in calculating Root Mean Squared Error
+        :param x: angle x in radians
+        :param y: angle y in radians
+        :return: difference in radians
+        """
+        return min((angle2 - angle1)**2, (angle2 - angle1 + 2 * math.pi)**2, (angle2 - angle1 - 2 * math.pi)**2, key=abs)

@@ -209,7 +209,8 @@ def predict_video_yolov4(input_video_path, output_video_path, weights_path, conf
 
 # --------------------------------------------------------------------
 def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_nums, output_video_path, weights_path, config_path, model_type, conf_threshold=0.4,
-                                   nms_threshold=0.6, max_age=5, min_hits=3, sort_iou_threshold=0.3, show_frames=True, debug=False):
+                                   nms_threshold=0.6, max_age=5, min_hits=2, sort_iou_threshold=0.5, angle_momentum=0.5, max_num_of_past_bbs_for_direction=3,
+                                   max_num_of_past_bbs_for_avg_distance=5, correction_vector_weight=0.5, show_frames=True, debug=False):
     """
 
     :param src_frames_dir: path to images
@@ -221,7 +222,10 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
     :param model: yolov4 or volov7
     :return:
     """
-    print('-------', 'conf_threshold:', conf_threshold, ', nms_threshold:', nms_threshold, ', max_age:', max_age, ', min_hits:', min_hits, ', sort_iou_threshold:', sort_iou_threshold,  '--------')
+    print('-------', 'conf_threshold:', conf_threshold, ', nms_threshold:', nms_threshold, ', max_age:', max_age, ', min_hits:', min_hits,
+          ', sort_iou_threshold:', sort_iou_threshold, ', angle_momentum', angle_momentum, ', max_num_of_past_bbs_for_direction',
+          max_num_of_past_bbs_for_direction,
+          ', max_num_of_past_bbs_for_avg_distance', max_num_of_past_bbs_for_avg_distance, 'correction_vector_weight', correction_vector_weight, '--------')
 
     if model_type == 'yolov4':
         print('Using YOLO v4')
@@ -270,7 +274,8 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
         mot_tracker = Sort(max_age=max_age,
                            min_hits=min_hits,
                            iou_threshold=sort_iou_threshold)
-        trajectory_model = TrajectoryModel(width, height, debug=debug)
+        trajectory_model = TrajectoryModel(width, height, angle_momentum=angle_momentum, max_num_of_past_bbs_for_direction=max_num_of_past_bbs_for_direction,
+                                           max_num_of_past_bbs_for_avg_distance=max_num_of_past_bbs_for_avg_distance, correction_vector_weight=correction_vector_weight, debug=debug)
         camera_motion_estimator = CameraMotionEstimator(img_filepaths, width, height)
 
         for f in img_filepaths:
@@ -311,7 +316,7 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
                 draw_arrow_from_angle(frame, x1, y1, label['bb_angle'], 30, (255, 0, 0))  # Blue
 
             # to show how radians are translated to arrows
-            draw_example_arrows(frame)
+            # draw_example_arrows(frame)
 
             # Get vectors estimating shift for each tracked object on the frame due to camera motion
             frame, correction_vectors, current_motion = camera_motion_estimator.update(frame, tracked_bbs)
@@ -326,8 +331,9 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
 
             # normal
             # Update metrics (mAP, timers etc)
-            frame = metrics.update(detections, predictions_split, angle_predictions, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
-                           trajectory_prediction_end_time, frame)
+            frame = metrics.update(detections, predictions_split, angle_predictions, start_time, yolo_end_time, tracking_end_time,
+                                   camera_motion_estimation_end_time,
+                                   trajectory_prediction_end_time, frame)
 
             # sort testing
             # metrics.update(tracked_bbs, predictions_split, start_time, yolo_end_time, tracking_end_time, camera_motion_estimation_end_time,
@@ -346,7 +352,7 @@ def predict_video_from_frames_yolo(src_frames_dir, src_labels_dir, recording_num
 
     # out.release()
     cv2.destroyAllWindows()
-    return metrics.default_metrics, metrics.coco_summary
+    return metrics.trajectory_metric_avg_summary, metrics.coco_summary
 
 
 # TODO: Add deepsort to project

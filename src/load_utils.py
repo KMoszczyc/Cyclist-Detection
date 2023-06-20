@@ -1596,16 +1596,36 @@ def display_cutting_truncated_labels(labels_src_dir, img_src_dir):
 
     labels = get_kitti_tracking_labels_with_img_names_merged(labels_src_dir, img_src_dir)
     truncated_labels = [label for label in labels if int(label['truncated']) == 1]
+    non_truncated_labels = [label for label in labels if int(label['truncated']) == 0]
+
     truncated_img_names = set([label['image_name'] for label in truncated_labels])
     print('truncated_img_names num', len(truncated_img_names))
 
     for img_name in truncated_img_names:
         frame_truncated_bbs = [label_to_xyx2y2_int(label) for label in truncated_labels if label['image_name'] == img_name]
+        frame_non_truncated_bbs = [label_to_xyx2y2_int(label) for label in non_truncated_labels if label['image_name'] == img_name]
+        frame_all_bbs = [label_to_xyx2y2_int(label) for label in labels if label['image_name'] == img_name]
+
         full_img_name = img_name + '.jpg'
         img_path = os.path.join(img_src_dir, full_img_name)
         img = cv2.imread(img_path)
-        cut_bbs_out_of_img(img, frame_truncated_bbs)
 
+        for bb in frame_all_bbs:
+            cv2.rectangle(img, (bb[0], bb[1]), (bb[2], bb[3]), (255, 0, 0), 2)
+
+        cv2.imshow('img', img)
+        cv2.waitKey(0)
+        img = cut_bbs_out_of_img(img, frame_truncated_bbs)
+
+        for bb in frame_truncated_bbs: #cover the blue bounding boxes for the truncated, cut objects
+            cv2.rectangle(img, (bb[0], bb[1]), (bb[2], bb[3]), (0, 0, 0), 2)
+
+        for bb in frame_non_truncated_bbs:
+            cv2.rectangle(img, (bb[0], bb[1]), (bb[2], bb[3]), (255, 0, 0), 2)
+
+
+        cv2.imshow('img', img)
+        cv2.waitKey(0)
 
 def cut_bbs_out_of_img(img, bbs):
     """
